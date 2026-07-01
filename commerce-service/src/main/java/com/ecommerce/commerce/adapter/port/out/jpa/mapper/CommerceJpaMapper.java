@@ -40,6 +40,9 @@ public class CommerceJpaMapper {
                 toShippingAddress(entity),
                 toBillingAddress(entity),
                 entity.getNotes(),
+                entity.getPaymentMethod(),
+                entity.getPaymentReference(),
+                entity.getPaidAt(),
                 entity.getCreatedAt(),
                 entity.getItems().stream().map(this::toDomain).toList()
         );
@@ -55,6 +58,9 @@ public class CommerceJpaMapper {
         setShippingAddress(entity, order.shippingAddress());
         setBillingAddress(entity, order.billingAddress());
         entity.setNotes(order.notes());
+        entity.setPaymentMethod(order.paymentMethod());
+        entity.setPaymentReference(order.paymentReference());
+        entity.setPaidAt(order.paidAt());
         entity.setCreatedAt(order.createdAt());
         entity.setItems(order.items().stream()
                 .map(item -> toEntity(item, entity))

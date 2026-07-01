@@ -2,6 +2,7 @@ package com.ecommerce.commerce.application.service;
 
 import com.ecommerce.commerce.application.port.in.AddCartItemUseCase;
 import com.ecommerce.commerce.application.port.in.CheckoutUseCase;
+import com.ecommerce.commerce.application.port.in.ConfirmOrderPaymentUseCase;
 import com.ecommerce.commerce.application.port.in.GetCartUseCase;
 import com.ecommerce.commerce.application.port.in.GetOrderUseCase;
 import com.ecommerce.commerce.application.port.in.ListOrdersUseCase;
@@ -11,6 +12,7 @@ import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.domain.exception.InvalidCartException;
+import com.ecommerce.commerce.domain.exception.InvalidOrderStateException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import com.ecommerce.commerce.domain.model.Cart;
 import com.ecommerce.commerce.domain.model.CartItem;
@@ -25,7 +27,7 @@ import java.util.UUID;
 
 public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
         UpdateCartItemQuantityUseCase, RemoveCartItemUseCase, CheckoutUseCase,
-        ListOrdersUseCase, GetOrderUseCase {
+        ListOrdersUseCase, GetOrderUseCase, ConfirmOrderPaymentUseCase {
 
     private final CartRepositoryPort cartRepository;
     private final OrderRepositoryPort orderRepository;
@@ -156,6 +158,9 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 command.shippingAddress(),
                 command.billingAddress() == null ? command.shippingAddress() : command.billingAddress(),
                 command.notes(),
+                null,
+                null,
+                null,
                 Instant.now(),
                 orderItems
         ));
@@ -172,6 +177,33 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
     public Order getOrder(UUID userId, UUID orderId) {
         return orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found", Map.of("orderId", orderId)));
+    }
+
+    @Override
+    public Order confirmPayment(UUID userId, UUID orderId, ConfirmOrderPaymentUseCase.Command command) {
+        Order order = getOrder(userId, orderId);
+        if (order.status() != OrderStatus.PENDING_PAYMENT) {
+            throw new InvalidOrderStateException("Order cannot be paid in current state", Map.of(
+                    "orderId", orderId,
+                    "status", order.status()
+            ));
+        }
+
+        return orderRepository.save(new Order(
+                order.id(),
+                order.userId(),
+                OrderStatus.CONFIRMED,
+                order.currency(),
+                order.total(),
+                order.shippingAddress(),
+                order.billingAddress(),
+                order.notes(),
+                command.paymentMethod(),
+                command.providerReference(),
+                Instant.now(),
+                order.createdAt(),
+                order.items()
+        ));
     }
 
     private Cart getExistingCart(UUID userId) {

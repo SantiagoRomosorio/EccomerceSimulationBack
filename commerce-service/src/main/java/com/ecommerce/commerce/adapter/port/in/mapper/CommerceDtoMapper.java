@@ -35,6 +35,9 @@ public class CommerceDtoMapper {
                 toResponse(order.shippingAddress()),
                 toResponse(order.billingAddress()),
                 order.notes(),
+                order.paymentMethod(),
+                order.paymentReference(),
+                order.paidAt(),
                 order.createdAt(),
                 order.items().stream().map(this::toResponse).toList()
         );

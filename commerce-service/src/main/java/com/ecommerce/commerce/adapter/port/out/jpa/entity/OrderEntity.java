@@ -87,6 +87,14 @@ public class OrderEntity {
     @Column(length = 500)
     private String notes;
 
+    @Column(length = 40)
+    private String paymentMethod;
+
+    @Column(length = 120)
+    private String paymentReference;
+
+    private Instant paidAt;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -267,6 +275,30 @@ public class OrderEntity {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public String getPaymentReference() {
+        return paymentReference;
+    }
+
+    public void setPaymentReference(String paymentReference) {
+        this.paymentReference = paymentReference;
+    }
+
+    public Instant getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(Instant paidAt) {
+        this.paidAt = paidAt;
     }
 
     public Instant getCreatedAt() {

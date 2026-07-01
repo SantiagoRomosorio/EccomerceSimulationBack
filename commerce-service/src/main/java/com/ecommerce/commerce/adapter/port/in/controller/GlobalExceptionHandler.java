@@ -2,6 +2,7 @@ package com.ecommerce.commerce.adapter.port.in.controller;
 
 import com.ecommerce.commerce.domain.exception.DomainException;
 import com.ecommerce.commerce.domain.exception.InventoryReservationException;
+import com.ecommerce.commerce.domain.exception.InvalidOrderStateException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import com.ecommerce.common.web.response.ApiResponse;
 import com.ecommerce.common.web.response.ApiResponseFactory;
@@ -135,7 +136,7 @@ public class GlobalExceptionHandler {
             return ApiStatusCode.NOT_FOUND;
         }
 
-        if (exception instanceof InventoryReservationException) {
+        if (exception instanceof InventoryReservationException || exception instanceof InvalidOrderStateException) {
             return ApiStatusCode.CONFLICT;
         }
 

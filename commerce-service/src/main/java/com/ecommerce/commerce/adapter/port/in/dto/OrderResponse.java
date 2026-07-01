@@ -15,6 +15,9 @@ public record OrderResponse(
         OrderAddressResponse shippingAddress,
         OrderAddressResponse billingAddress,
         String notes,
+        String paymentMethod,
+        String paymentReference,
+        Instant paidAt,
         Instant createdAt,
         List<OrderItemResponse> items
 ) {

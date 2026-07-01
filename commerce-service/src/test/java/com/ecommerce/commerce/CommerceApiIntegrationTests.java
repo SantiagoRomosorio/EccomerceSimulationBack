@@ -120,6 +120,38 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.message").value("Order returned successfully"))
                 .andExpect(jsonPath("$.data.id").value(orderId))
                 .andExpect(jsonPath("$.data.shippingAddress.city").value("Bogota"));
+
+        mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "paymentMethod": "CARD",
+                                  "providerReference": "pay-test-001"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("Order payment confirmed successfully"))
+                .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.data.paymentMethod").value("CARD"))
+                .andExpect(jsonPath("$.data.paymentReference").value("pay-test-001"))
+                .andExpect(jsonPath("$.data.paidAt", notNullValue()));
+
+        mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "paymentMethod": "CARD",
+                                  "providerReference": "pay-test-002"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.developerMessage").value("InvalidOrderStateException"));
     }
 
     @Test
