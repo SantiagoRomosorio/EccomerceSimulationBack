@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: commerce-postgres
+  namespace: ecommerce
+type: Opaque
+stringData:
+  username: commerce_user
+  password: commerce_password
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: commerce-postgres-data
+  namespace: ecommerce
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: commerce-postgres
+  namespace: ecommerce
+  labels:
+    app: commerce-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: commerce-postgres
+  template:
+    metadata:
+      labels:
+        app: commerce-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_DB
+              value: commerce_db
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: commerce-postgres
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: commerce-postgres
+                  key: password
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: commerce-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: commerce-postgres
+  namespace: ecommerce
+  labels:
+    app: commerce-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: commerce-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
