@@ -1,0 +1,3 @@
+CREATE USER catalog WITH PASSWORD 'catalog';
+CREATE DATABASE catalogdb OWNER catalog;
+GRANT ALL PRIVILEGES ON DATABASE catalogdb TO catalog;

@@ -1,0 +1,62 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Kubernetes resuelve estos nombres por DNS interno.
+          # No usamos Eureka ni discovery client de Spring.
+          routes:
+            - id: identity-service
+              uri: http://identity-service:8080
+              predicates:
+                - Path=/api/auth/**,/api/users/**
+            - id: identity-health
+              uri: http://identity-service:8080
+              predicates:
+                - Path=/api/identity/health
+              filters:
+                - RewritePath=/api/identity/health,/api/health
+            - id: catalog-service
+              uri: http://catalog-service:8080
+              predicates:
+                - Path=/api/products/**,/api/categories/**,/api/brands/**
+            - id: catalog-health
+              uri: http://catalog-service:8080
+              predicates:
+                - Path=/api/catalog/health
+              filters:
+                - RewritePath=/api/catalog/health,/api/health
+            - id: commerce-service
+              uri: http://commerce-service:8080
+              predicates:
+                - Path=/api/cart/**,/api/checkout/**,/api/orders/**
+            - id: commerce-health
+              uri: http://commerce-service:8080
+              predicates:
+                - Path=/api/commerce/health
+              filters:
+                - RewritePath=/api/commerce/health,/api/health
+
+security:
+  jwt:
+    # El gateway es el punto central de validacion JWT.
+    # Los microservicios internos no deben repetir filtros JWT; reciben identidad
+    # validada por headers internos: X-User-Id, X-User-Email, X-User-Roles y
+    # X-User-Scopes.
+    # En Kubernetes esto debe venir de un Secret, no quedar hardcodeado.
+    secret: ${JWT_SECRET:change-this-secret-key-change-this-secret-key}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true

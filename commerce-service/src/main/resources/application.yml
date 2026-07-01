@@ -1,0 +1,30 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: commerce-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: sa
+    password:
+    driver-class-name: org.postgresql.Driver
+  postgres:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+clients:
+  catalog:
+    base-url: ${CATALOG_SERVICE_URL:http://localhost:8082}

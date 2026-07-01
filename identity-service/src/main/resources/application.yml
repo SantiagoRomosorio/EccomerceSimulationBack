@@ -1,0 +1,46 @@
+server:
+  # En Kubernetes todos los servicios escuchan 8080; localmente puedes usar SERVER_PORT=8081.
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    # PostgreSQL mantiene el servicio runnable localmente. En Kubernetes cambiaremos a PostgreSQL.
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: sa
+    password:
+    driver-class-name: org.postgresql.Driver
+  postgres:
+    console:
+      enabled: true
+      path: /postgres-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+security:
+  jwt:
+    # Identity emite tokens; el gateway los valida de forma centralizada.
+    # Debe ser el mismo Secret que usa api-gateway.
+    secret: ${JWT_SECRET:change-this-secret-key-change-this-secret-key}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

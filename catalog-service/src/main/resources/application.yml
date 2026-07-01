@@ -1,0 +1,39 @@
+server:
+  # En Kubernetes todos los servicios escuchan 8080; localmente puedes usar SERVER_PORT=8082.
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: catalog-service
+  datasource:
+    # PostgreSQL permite trabajar local sin depender de Docker. PostgreSQL queda listo por profile.
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: sa
+    password:
+    driver-class-name: org.postgresql.Driver
+  postgres:
+    console:
+      enabled: true
+      path: /postgres-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

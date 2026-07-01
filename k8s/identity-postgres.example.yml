@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: identity-postgres
+  namespace: ecommerce
+type: Opaque
+stringData:
+  username: identity_user
+  password: identity_password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-postgres
+  namespace: ecommerce
+  labels:
+    app: identity-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: identity-postgres
+  template:
+    metadata:
+      labels:
+        app: identity-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: identity_db
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: identity-postgres
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: identity-postgres
+                  key: password
+          ports:
+            - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-postgres
+  namespace: ecommerce
+  labels:
+    app: identity-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: identity-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
