@@ -95,6 +95,11 @@ public class OrderEntity {
 
     private Instant paidAt;
 
+    @Column(length = 300)
+    private String cancellationReason;
+
+    private Instant cancelledAt;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -299,6 +304,22 @@ public class OrderEntity {
 
     public void setPaidAt(Instant paidAt) {
         this.paidAt = paidAt;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
+    }
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant cancelledAt) {
+        this.cancelledAt = cancelledAt;
     }
 
     public Instant getCreatedAt() {

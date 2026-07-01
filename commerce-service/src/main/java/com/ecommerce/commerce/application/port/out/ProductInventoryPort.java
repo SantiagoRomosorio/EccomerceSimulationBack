@@ -7,6 +7,8 @@ public interface ProductInventoryPort {
 
     void reserveStock(List<Reservation> reservations);
 
+    void releaseStock(List<Reservation> reservations);
+
     record Reservation(UUID productId, int quantity) {
     }
 }

@@ -7,6 +7,7 @@ import com.ecommerce.catalog.application.port.in.GetProductUseCase;
 import com.ecommerce.catalog.application.port.in.ListBrandsUseCase;
 import com.ecommerce.catalog.application.port.in.ListCategoriesUseCase;
 import com.ecommerce.catalog.application.port.in.ListProductsUseCase;
+import com.ecommerce.catalog.application.port.in.ReleaseProductStockUseCase;
 import com.ecommerce.catalog.application.port.in.ReserveProductStockUseCase;
 import com.ecommerce.catalog.application.port.in.UpdateProductStockUseCase;
 import com.ecommerce.catalog.application.port.out.BrandRepositoryPort;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogService implements CreateCategoryUseCase, ListCategoriesUseCase,
         CreateBrandUseCase, ListBrandsUseCase,
         CreateProductUseCase, GetProductUseCase, ListProductsUseCase, UpdateProductStockUseCase,
-        ReserveProductStockUseCase {
+        ReserveProductStockUseCase, ReleaseProductStockUseCase {
 
     private final CategoryRepositoryPort categoryRepository;
     private final BrandRepositoryPort brandRepository;
@@ -132,5 +133,20 @@ public class CatalogService implements CreateCategoryUseCase, ListCategoriesUseC
         }
 
         return productRepository.save(product.withStockQuantity(product.stockQuantity() - command.quantity()));
+    }
+
+    @Override
+    @Transactional
+    public List<Product> releaseStock(List<ReleaseProductStockUseCase.Command> commands) {
+        return commands.stream()
+                .map(this::releaseStock)
+                .toList();
+    }
+
+    private Product releaseStock(ReleaseProductStockUseCase.Command command) {
+        Product product = productRepository.findProductByIdForUpdate(command.productId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found", Map.of("productId", command.productId())));
+
+        return productRepository.save(product.withStockQuantity(product.stockQuantity() + command.quantity()));
     }
 }

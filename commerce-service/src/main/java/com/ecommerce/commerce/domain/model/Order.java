@@ -17,6 +17,8 @@ public record Order(
         String paymentMethod,
         String paymentReference,
         Instant paidAt,
+        String cancellationReason,
+        Instant cancelledAt,
         Instant createdAt,
         List<OrderItem> items
 ) {

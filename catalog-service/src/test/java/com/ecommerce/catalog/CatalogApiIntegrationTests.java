@@ -510,6 +510,50 @@ class CatalogApiIntegrationTests {
                 .andExpect(jsonPath("$.data.availableQuantity").value(8));
     }
 
+    @Test
+    void releaseStockReturnsOkAndIncrementsProductStock() throws Exception {
+        String productId = createProduct();
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "items": [
+                                    {
+                                      "productId": "%s",
+                                      "quantity": 3
+                                    }
+                                  ]
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(5));
+
+        mockMvc.perform(post("/api/internal/products/stock/releases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "items": [
+                                    {
+                                      "productId": "%s",
+                                      "quantity": 3
+                                    }
+                                  ]
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.result").value("OK"))
+                .andExpect(jsonPath("$.message").value("Product stock released successfully"))
+                .andExpect(jsonPath("$.data[0].id").value(productId))
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(8));
+
+        mockMvc.perform(get("/api/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stockQuantity").value(8));
+    }
+
     private String createCategory(String slug) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/categories")
                         .contentType(MediaType.APPLICATION_JSON)

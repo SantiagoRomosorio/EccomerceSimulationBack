@@ -38,6 +38,8 @@ public class CommerceDtoMapper {
                 order.paymentMethod(),
                 order.paymentReference(),
                 order.paidAt(),
+                order.cancellationReason(),
+                order.cancelledAt(),
                 order.createdAt(),
                 order.items().stream().map(this::toResponse).toList()
         );

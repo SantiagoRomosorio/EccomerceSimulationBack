@@ -43,6 +43,8 @@ public class CommerceJpaMapper {
                 entity.getPaymentMethod(),
                 entity.getPaymentReference(),
                 entity.getPaidAt(),
+                entity.getCancellationReason(),
+                entity.getCancelledAt(),
                 entity.getCreatedAt(),
                 entity.getItems().stream().map(this::toDomain).toList()
         );
@@ -61,6 +63,8 @@ public class CommerceJpaMapper {
         entity.setPaymentMethod(order.paymentMethod());
         entity.setPaymentReference(order.paymentReference());
         entity.setPaidAt(order.paidAt());
+        entity.setCancellationReason(order.cancellationReason());
+        entity.setCancelledAt(order.cancelledAt());
         entity.setCreatedAt(order.createdAt());
         entity.setItems(order.items().stream()
                 .map(item -> toEntity(item, entity))

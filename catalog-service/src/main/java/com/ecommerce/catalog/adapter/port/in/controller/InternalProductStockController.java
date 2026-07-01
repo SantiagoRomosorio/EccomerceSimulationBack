@@ -3,6 +3,7 @@ package com.ecommerce.catalog.adapter.port.in.controller;
 import com.ecommerce.catalog.adapter.port.in.dto.ProductResponse;
 import com.ecommerce.catalog.adapter.port.in.dto.ReserveProductStockRequest;
 import com.ecommerce.catalog.adapter.port.in.mapper.CatalogDtoMapper;
+import com.ecommerce.catalog.application.port.in.ReleaseProductStockUseCase;
 import com.ecommerce.catalog.application.port.in.ReserveProductStockUseCase;
 import com.ecommerce.common.web.response.ApiResponse;
 import com.ecommerce.common.web.response.ApiResponseFactory;
@@ -23,15 +24,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalProductStockController {
 
     private final ReserveProductStockUseCase reserveProductStockUseCase;
+    private final ReleaseProductStockUseCase releaseProductStockUseCase;
     private final CatalogDtoMapper mapper;
     private final ApiResponseFactory responseFactory;
 
     public InternalProductStockController(
             ReserveProductStockUseCase reserveProductStockUseCase,
+            ReleaseProductStockUseCase releaseProductStockUseCase,
             CatalogDtoMapper mapper,
             ApiResponseFactory responseFactory
     ) {
         this.reserveProductStockUseCase = reserveProductStockUseCase;
+        this.releaseProductStockUseCase = releaseProductStockUseCase;
         this.mapper = mapper;
         this.responseFactory = responseFactory;
     }
@@ -57,5 +61,27 @@ public class InternalProductStockController {
                 .toList();
 
         return responseFactory.success(ApiStatusCode.OK, "Product stock reserved successfully", response, request);
+    }
+
+    @PostMapping("/releases")
+    @Operation(summary = "Release product stock for an internal order cancellation")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Product stock released"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Product not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Unexpected server error")
+    })
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> release(
+            @Valid @RequestBody ReserveProductStockRequest body,
+            HttpServletRequest request
+    ) {
+        List<ProductResponse> response = releaseProductStockUseCase.releaseStock(body.items().stream()
+                        .map(item -> new ReleaseProductStockUseCase.Command(item.productId(), item.quantity()))
+                        .toList())
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+
+        return responseFactory.success(ApiStatusCode.OK, "Product stock released successfully", response, request);
     }
 }

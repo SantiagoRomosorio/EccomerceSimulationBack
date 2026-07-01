@@ -1,8 +1,10 @@
 package com.ecommerce.commerce.adapter.port.in.controller;
 
+import com.ecommerce.commerce.adapter.port.in.dto.CancelOrderRequest;
 import com.ecommerce.commerce.adapter.port.in.dto.ConfirmOrderPaymentRequest;
 import com.ecommerce.commerce.adapter.port.in.dto.OrderResponse;
 import com.ecommerce.commerce.adapter.port.in.mapper.CommerceDtoMapper;
+import com.ecommerce.commerce.application.port.in.CancelOrderUseCase;
 import com.ecommerce.commerce.application.port.in.ConfirmOrderPaymentUseCase;
 import com.ecommerce.commerce.application.port.in.GetOrderUseCase;
 import com.ecommerce.commerce.application.port.in.ListOrdersUseCase;
@@ -31,6 +33,7 @@ public class OrderController {
     private final ListOrdersUseCase listOrdersUseCase;
     private final GetOrderUseCase getOrderUseCase;
     private final ConfirmOrderPaymentUseCase confirmOrderPaymentUseCase;
+    private final CancelOrderUseCase cancelOrderUseCase;
     private final CommerceDtoMapper mapper;
     private final ApiResponseFactory responseFactory;
 
@@ -38,12 +41,14 @@ public class OrderController {
             ListOrdersUseCase listOrdersUseCase,
             GetOrderUseCase getOrderUseCase,
             ConfirmOrderPaymentUseCase confirmOrderPaymentUseCase,
+            CancelOrderUseCase cancelOrderUseCase,
             CommerceDtoMapper mapper,
             ApiResponseFactory responseFactory
     ) {
         this.listOrdersUseCase = listOrdersUseCase;
         this.getOrderUseCase = getOrderUseCase;
         this.confirmOrderPaymentUseCase = confirmOrderPaymentUseCase;
+        this.cancelOrderUseCase = cancelOrderUseCase;
         this.mapper = mapper;
         this.responseFactory = responseFactory;
     }
@@ -109,5 +114,29 @@ public class OrderController {
                 new ConfirmOrderPaymentUseCase.Command(body.paymentMethod(), body.providerReference())
         ));
         return responseFactory.success(ApiStatusCode.OK, "Order payment confirmed successfully", response, request);
+    }
+
+    @PostMapping("/{id}/cancellations")
+    @Operation(summary = "Cancel current user order")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Order cancelled"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request body or order id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Missing authenticated user header"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Order not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Order cannot be cancelled in current state"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Unexpected server error")
+    })
+    public ResponseEntity<ApiResponse<OrderResponse>> cancel(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable UUID id,
+            @Valid @RequestBody CancelOrderRequest body,
+            HttpServletRequest request
+    ) {
+        OrderResponse response = mapper.toResponse(cancelOrderUseCase.cancelOrder(
+                userId,
+                id,
+                new CancelOrderUseCase.Command(body.reason())
+        ));
+        return responseFactory.success(ApiStatusCode.OK, "Order cancelled successfully", response, request);
     }
 }

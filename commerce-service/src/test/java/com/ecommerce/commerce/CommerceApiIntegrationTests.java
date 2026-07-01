@@ -1,6 +1,7 @@
 package com.ecommerce.commerce;
 
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -201,6 +202,89 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"));
+    }
+
+    @Test
+    void cancelPendingOrderReturnsOkAndReleasesStock() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        addItem(userId, productId);
+
+        MvcResult checkout = mockMvc.perform(post("/api/checkout")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validCheckoutBody()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("PENDING_PAYMENT"))
+                .andReturn();
+
+        String orderId = com.jayway.jsonpath.JsonPath.read(
+                checkout.getResponse().getContentAsString(),
+                "$.data.id"
+        );
+
+        mockMvc.perform(post("/api/orders/{id}/cancellations", orderId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Customer changed their mind"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.message").value("Order cancelled successfully"))
+                .andExpect(jsonPath("$.data.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.data.cancellationReason").value("Customer changed their mind"))
+                .andExpect(jsonPath("$.data.cancelledAt", notNullValue()));
+
+        verify(productInventoryPort).releaseStock(java.util.List.of(
+                new ProductInventoryPort.Reservation(productId, 1)
+        ));
+    }
+
+    @Test
+    void cancelConfirmedOrderReturnsConflict() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        addItem(userId, productId);
+
+        MvcResult checkout = mockMvc.perform(post("/api/checkout")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validCheckoutBody()))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String orderId = com.jayway.jsonpath.JsonPath.read(
+                checkout.getResponse().getContentAsString(),
+                "$.data.id"
+        );
+
+        mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "paymentMethod": "CARD",
+                                  "providerReference": "pay-confirmed-cancel"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/orders/{id}/cancellations", orderId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "Too late"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.method").value("POST"))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.developerMessage").value("InvalidOrderStateException"));
     }
 
     @Test

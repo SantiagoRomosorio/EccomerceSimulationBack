@@ -1,6 +1,7 @@
 package com.ecommerce.commerce.application.service;
 
 import com.ecommerce.commerce.application.port.in.AddCartItemUseCase;
+import com.ecommerce.commerce.application.port.in.CancelOrderUseCase;
 import com.ecommerce.commerce.application.port.in.CheckoutUseCase;
 import com.ecommerce.commerce.application.port.in.ConfirmOrderPaymentUseCase;
 import com.ecommerce.commerce.application.port.in.GetCartUseCase;
@@ -27,7 +28,7 @@ import java.util.UUID;
 
 public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
         UpdateCartItemQuantityUseCase, RemoveCartItemUseCase, CheckoutUseCase,
-        ListOrdersUseCase, GetOrderUseCase, ConfirmOrderPaymentUseCase {
+        ListOrdersUseCase, GetOrderUseCase, ConfirmOrderPaymentUseCase, CancelOrderUseCase {
 
     private final CartRepositoryPort cartRepository;
     private final OrderRepositoryPort orderRepository;
@@ -161,6 +162,8 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 null,
                 null,
                 null,
+                null,
+                null,
                 Instant.now(),
                 orderItems
         ));
@@ -200,6 +203,41 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 order.notes(),
                 command.paymentMethod(),
                 command.providerReference(),
+                Instant.now(),
+                order.cancellationReason(),
+                order.cancelledAt(),
+                order.createdAt(),
+                order.items()
+        ));
+    }
+
+    @Override
+    public Order cancelOrder(UUID userId, UUID orderId, CancelOrderUseCase.Command command) {
+        Order order = getOrder(userId, orderId);
+        if (order.status() != OrderStatus.PENDING_PAYMENT) {
+            throw new InvalidOrderStateException("Order cannot be cancelled in current state", Map.of(
+                    "orderId", orderId,
+                    "status", order.status()
+            ));
+        }
+
+        productInventoryPort.releaseStock(order.items().stream()
+                .map(item -> new ProductInventoryPort.Reservation(item.productId(), item.quantity()))
+                .toList());
+
+        return orderRepository.save(new Order(
+                order.id(),
+                order.userId(),
+                OrderStatus.CANCELLED,
+                order.currency(),
+                order.total(),
+                order.shippingAddress(),
+                order.billingAddress(),
+                order.notes(),
+                order.paymentMethod(),
+                order.paymentReference(),
+                order.paidAt(),
+                command.reason(),
                 Instant.now(),
                 order.createdAt(),
                 order.items()

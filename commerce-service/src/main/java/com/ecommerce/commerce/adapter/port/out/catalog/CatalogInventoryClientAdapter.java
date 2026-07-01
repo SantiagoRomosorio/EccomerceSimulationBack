@@ -52,6 +52,29 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
         }
     }
 
+    @Override
+    public void releaseStock(List<Reservation> reservations) {
+        try {
+            restClient.post()
+                    .uri("/api/internal/products/stock/releases")
+                    .body(new ReserveStockRequest(reservations.stream()
+                            .map(item -> new ReserveStockItemRequest(item.productId(), item.quantity()))
+                            .toList()))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (HttpClientErrorException exception) {
+            if (exception.getStatusCode().isSameCodeAs(HttpStatusCode.valueOf(404))) {
+                throw new ResourceNotFoundException("Product not found while releasing stock", Map.of(
+                        "catalogStatus", exception.getStatusCode().value()
+                ));
+            }
+
+            throw new InventoryReservationException("Catalog rejected stock release", Map.of(
+                    "catalogStatus", exception.getStatusCode().value()
+            ));
+        }
+    }
+
     private record ReserveStockRequest(List<ReserveStockItemRequest> items) {
     }
 

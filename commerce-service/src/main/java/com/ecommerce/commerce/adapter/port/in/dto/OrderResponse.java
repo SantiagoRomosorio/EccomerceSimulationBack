@@ -18,6 +18,8 @@ public record OrderResponse(
         String paymentMethod,
         String paymentReference,
         Instant paidAt,
+        String cancellationReason,
+        Instant cancelledAt,
         Instant createdAt,
         List<OrderItemResponse> items
 ) {
