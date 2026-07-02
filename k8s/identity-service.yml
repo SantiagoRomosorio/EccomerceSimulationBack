@@ -15,6 +15,26 @@ spec:
       labels:
         app: identity-service
     spec:
+      initContainers:
+        - name: wait-for-identity-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - >
+              until pg_isready -h identity-postgres -p 5432 -U "$(POSTGRES_USER)" -d identity_db;
+              do echo "waiting for identity-postgres"; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: identity-postgres
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: identity-postgres
+                  key: password
       containers:
         - name: identity-service
           image: ecommerce/identity-service:0.0.1
@@ -42,17 +62,24 @@ spec:
                   key: password
           ports:
             - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 15
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8080
-            initialDelaySeconds: 20
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 5
             periodSeconds: 20
 ---
 apiVersion: v1

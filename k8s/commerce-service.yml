@@ -15,6 +15,26 @@ spec:
       labels:
         app: commerce-service
     spec:
+      initContainers:
+        - name: wait-for-commerce-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - >
+              until pg_isready -h commerce-postgres -p 5432 -U "$(COMMERCE_DB_USERNAME)" -d commerce_db;
+              do echo "waiting for commerce-postgres"; sleep 2; done
+          env:
+            - name: COMMERCE_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: commerce-postgres
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: commerce-postgres
+                  key: password
       containers:
         - name: commerce-service
           image: ecommerce/commerce-service:0.0.1
@@ -38,17 +58,24 @@ spec:
               value: http://catalog-service:8080
           ports:
             - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 15
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8080
-            initialDelaySeconds: 20
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8080
-            initialDelaySeconds: 30
+            initialDelaySeconds: 5
             periodSeconds: 20
 ---
 apiVersion: v1
