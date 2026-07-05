@@ -16,6 +16,7 @@ public class CommerceJpaMapper {
 
     public Cart toDomain(CartEntity entity) {
         return new Cart(entity.getId(), entity.getUserId(), entity.getItems().stream()
+                .filter(this::isActive)
                 .map(this::toDomain)
                 .toList());
     }
@@ -84,17 +85,27 @@ public class CommerceJpaMapper {
         );
     }
 
-    private CartItemEntity toEntity(CartItem item, CartEntity cart) {
+    public CartItemEntity toEntity(CartItem item, CartEntity cart) {
         CartItemEntity entity = new CartItemEntity();
-        entity.setId(item.id());
         entity.setCart(cart);
+        updateEntity(item, entity);
+        return entity;
+    }
+
+    public void updateEntity(CartItem item, CartItemEntity entity) {
+        entity.setId(item.id());
         entity.setProductId(item.productId());
         entity.setSku(item.sku());
         entity.setProductName(item.productName());
         entity.setUnitPrice(item.unitPrice());
         entity.setCurrency(item.currency());
         entity.setQuantity(item.quantity());
-        return entity;
+        entity.setDeletedAt(null);
+        entity.setDeletedBy(null);
+    }
+
+    private boolean isActive(CartItemEntity entity) {
+        return entity.getDeletedAt() == null;
     }
 
     private OrderItem toDomain(OrderItemEntity entity) {

@@ -4,14 +4,18 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "cart_items")
+@Table(name = "cart_items", indexes = {
+        @Index(name = "idx_cart_items_cart_product_deleted", columnList = "cart_id, product_id, deleted_at")
+})
 public class CartItemEntity {
 
     @Id
@@ -38,6 +42,10 @@ public class CartItemEntity {
 
     @Column(nullable = false)
     private int quantity;
+
+    private Instant deletedAt;
+
+    private UUID deletedBy;
 
     public UUID getId() {
         return id;
@@ -101,5 +109,21 @@ public class CartItemEntity {
 
     public void setQuantity(int quantity) {
         this.quantity = quantity;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public UUID getDeletedBy() {
+        return deletedBy;
+    }
+
+    public void setDeletedBy(UUID deletedBy) {
+        this.deletedBy = deletedBy;
     }
 }
