@@ -8,11 +8,12 @@ import com.ecommerce.identity.application.port.out.LoadUserPort;
 import com.ecommerce.identity.application.port.out.SaveUserPort;
 import com.ecommerce.identity.config.properties.JwtProperties;
 import com.ecommerce.identity.domain.exception.ConflictException;
-import com.ecommerce.identity.domain.exception.DomainException;
 import com.ecommerce.identity.domain.exception.DomainErrorCode;
+import com.ecommerce.identity.domain.exception.DomainException;
 import com.ecommerce.identity.domain.exception.InvalidCredentialsException;
 import com.ecommerce.identity.domain.exception.ResourceNotFoundException;
 import com.ecommerce.identity.domain.model.User;
+import com.ecommerce.identity.domain.valueobject.Permission;
 import com.ecommerce.identity.domain.valueobject.UserRole;
 import java.time.Instant;
 import java.util.Map;
@@ -85,7 +86,8 @@ public class IdentityService implements RegisterUserUseCase, LoginUseCase, GetCu
                 user.id().toString(),
                 Map.of(
                         "email", user.email(),
-                        "roles", user.roles().stream().map(Enum::name).collect(Collectors.toSet())
+                        "roles", user.roles().stream().map(Enum::name).collect(Collectors.toSet()),
+                        "scope", resolveScopeClaim(user.roles())
                 )
         );
 
@@ -112,5 +114,14 @@ public class IdentityService implements RegisterUserUseCase, LoginUseCase, GetCu
         }
 
         return email.trim().toLowerCase();
+    }
+
+    private String resolveScopeClaim(Set<UserRole> roles) {
+        return roles.stream()
+                .flatMap(role -> role.permissions().stream())
+                .map(Permission::scope)
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(" "));
     }
 }

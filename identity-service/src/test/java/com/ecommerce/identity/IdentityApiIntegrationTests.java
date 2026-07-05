@@ -1,5 +1,6 @@
 package com.ecommerce.identity;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,6 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +28,7 @@ class IdentityApiIntegrationTests {
     private MockMvc mockMvc;
 
     @Test
-    void healthReturnsStandardApiResponse() throws Exception {
+    void healthReturnsStandardApiResult() throws Exception {
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.method").value("GET"))
@@ -57,7 +61,7 @@ class IdentityApiIntegrationTests {
     }
 
     @Test
-    void registerReturnsCreatedApiResponse() throws Exception {
+    void registerReturnsCreatedApiResult() throws Exception {
         String email = uniqueEmail();
 
         mockMvc.perform(post("/api/auth/register")
@@ -147,7 +151,7 @@ class IdentityApiIntegrationTests {
         String email = uniqueEmail();
         register(email);
 
-        mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -163,7 +167,15 @@ class IdentityApiIntegrationTests {
                 .andExpect(jsonPath("$.message").value("Login completed successfully"))
                 .andExpect(jsonPath("$.data.accessToken", notNullValue()))
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.data.expiresInMinutes").value(60));
+                .andExpect(jsonPath("$.data.expiresInMinutes").value(60))
+                .andReturn();
+
+        String token = JsonPath.read(result.getResponse().getContentAsString(), "$.data.accessToken");
+        String scope = jwtClaim(token, "$.scope");
+
+        assertThat(scope)
+                .contains("catalog:read", "cart:manage", "checkout:create", "orders:read:self", "users:read:self")
+                .doesNotContain("catalog:write", "stock:manage", "users:manage");
     }
 
     @Test
@@ -272,10 +284,17 @@ class IdentityApiIntegrationTests {
                 .andExpect(status().isCreated())
                 .andReturn();
 
-        return com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
     }
 
     private String uniqueEmail() {
         return "user-%s@example.com".formatted(UUID.randomUUID());
+    }
+
+    private String jwtClaim(String token, String jsonPath) {
+        String[] tokenParts = token.split("\\.");
+        String payload = new String(Base64.getUrlDecoder().decode(tokenParts[1]), StandardCharsets.UTF_8);
+
+        return JsonPath.read(payload, jsonPath);
     }
 }
