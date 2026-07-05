@@ -1,5 +1,7 @@
 package com.ecommerce.commerce.adapter.port.in.controller;
 
+import static com.ecommerce.common.web.openapi.OpenApiSecurity.BEARER_AUTH;
+
 import com.ecommerce.commerce.adapter.port.in.dto.CheckoutRequest;
 import com.ecommerce.commerce.adapter.port.in.dto.OrderResponse;
 import com.ecommerce.commerce.adapter.port.in.mapper.CommerceDtoMapper;
@@ -9,6 +11,7 @@ import com.ecommerce.common.web.response.ApiResponseFactory;
 import com.ecommerce.common.web.response.ApiStatusCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/checkout")
+@SecurityRequirement(name = BEARER_AUTH)
 public class CheckoutController {
 
     private final CheckoutUseCase checkoutUseCase;

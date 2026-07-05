@@ -1,5 +1,7 @@
 package com.ecommerce.commerce.adapter.port.in.controller;
 
+import static com.ecommerce.common.web.openapi.OpenApiSecurity.BEARER_AUTH;
+
 import com.ecommerce.commerce.adapter.port.in.dto.CancelOrderRequest;
 import com.ecommerce.commerce.adapter.port.in.dto.ConfirmOrderPaymentRequest;
 import com.ecommerce.commerce.adapter.port.in.dto.OrderResponse;
@@ -13,6 +15,7 @@ import com.ecommerce.common.web.response.ApiResponseFactory;
 import com.ecommerce.common.web.response.ApiStatusCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/orders")
+@SecurityRequirement(name = BEARER_AUTH)
 public class OrderController {
 
     private final ListOrdersUseCase listOrdersUseCase;

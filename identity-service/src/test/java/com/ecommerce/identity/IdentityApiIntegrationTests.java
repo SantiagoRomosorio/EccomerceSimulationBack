@@ -45,6 +45,9 @@ class IdentityApiIntegrationTests {
     void swaggerDocumentsStandardResponsesByEndpoint() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
                 .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['201']").exists())
                 .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['400']").exists())
                 .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['409']").exists())
@@ -57,7 +60,11 @@ class IdentityApiIntegrationTests {
                 .andExpect(jsonPath("$.paths['/api/users/me'].get.responses['400']").exists())
                 .andExpect(jsonPath("$.paths['/api/users/me'].get.responses['401']").exists())
                 .andExpect(jsonPath("$.paths['/api/users/me'].get.responses['404']").exists())
-                .andExpect(jsonPath("$.paths['/api/users/me'].get.responses['500']").exists());
+                .andExpect(jsonPath("$.paths['/api/users/me'].get.responses['500']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/me'].get.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/auth/register'].post.security").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.security").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/health'].get.security").doesNotExist());
     }
 
     @Test

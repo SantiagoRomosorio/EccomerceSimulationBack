@@ -1,5 +1,7 @@
 package com.ecommerce.identity.adapter.port.in.controller;
 
+import static com.ecommerce.common.web.openapi.OpenApiSecurity.BEARER_AUTH;
+
 import com.ecommerce.identity.adapter.port.in.dto.UserResponse;
 import com.ecommerce.identity.adapter.port.in.mapper.UserDtoMapper;
 import com.ecommerce.common.web.response.ApiResponse;
@@ -8,6 +10,7 @@ import com.ecommerce.common.web.response.ApiStatusCode;
 import com.ecommerce.identity.application.port.in.GetCurrentUserUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/users")
+@SecurityRequirement(name = BEARER_AUTH)
 public class UserController {
 
     private final GetCurrentUserUseCase getCurrentUserUseCase;

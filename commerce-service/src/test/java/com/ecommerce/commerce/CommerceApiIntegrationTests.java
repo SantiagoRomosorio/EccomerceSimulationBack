@@ -42,6 +42,25 @@ class CommerceApiIntegrationTests {
     }
 
     @Test
+    void swaggerDocumentsStandardResponsesByEndpoint() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+                .andExpect(jsonPath("$.paths['/api/cart'].get.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/cart/items'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/cart/items/{productId}'].patch.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/cart/items/{productId}'].delete.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/checkout'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/orders'].get.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/orders/{id}'].get.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/orders/{id}/payment-confirmations'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/orders/{id}/cancellations'].post.security[0].bearerAuth").isArray())
+                .andExpect(jsonPath("$.paths['/api/health'].get.security").doesNotExist());
+    }
+
+    @Test
     void cartCheckoutAndOrdersUseStandardApiResponses() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();

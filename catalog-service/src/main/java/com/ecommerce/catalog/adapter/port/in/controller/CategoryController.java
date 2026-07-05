@@ -1,5 +1,7 @@
 package com.ecommerce.catalog.adapter.port.in.controller;
 
+import static com.ecommerce.common.web.openapi.OpenApiSecurity.BEARER_AUTH;
+
 import com.ecommerce.catalog.adapter.port.in.dto.CategoryResponse;
 import com.ecommerce.catalog.adapter.port.in.dto.CreateCategoryRequest;
 import com.ecommerce.catalog.adapter.port.in.mapper.CatalogDtoMapper;
@@ -10,6 +12,7 @@ import com.ecommerce.catalog.application.port.in.CreateCategoryUseCase;
 import com.ecommerce.catalog.application.port.in.ListCategoriesUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/categories")
+@SecurityRequirement(name = BEARER_AUTH)
 public class CategoryController {
 
     private final CreateCategoryUseCase createCategoryUseCase;

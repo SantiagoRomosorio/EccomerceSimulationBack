@@ -1,5 +1,7 @@
 package com.ecommerce.catalog.adapter.port.in.controller;
 
+import static com.ecommerce.common.web.openapi.OpenApiSecurity.BEARER_AUTH;
+
 import com.ecommerce.catalog.adapter.port.in.dto.CreateProductRequest;
 import com.ecommerce.catalog.adapter.port.in.dto.ProductResponse;
 import com.ecommerce.catalog.adapter.port.in.dto.UpdateProductStockRequest;
@@ -13,6 +15,7 @@ import com.ecommerce.catalog.application.port.in.ListProductsUseCase;
 import com.ecommerce.catalog.application.port.in.UpdateProductStockUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/products")
+@SecurityRequirement(name = BEARER_AUTH)
 public class ProductController {
 
     private final CreateProductUseCase createProductUseCase;
