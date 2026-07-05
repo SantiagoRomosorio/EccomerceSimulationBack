@@ -97,8 +97,15 @@ public class SecurityConfig {
                         // Todo lo demas entra al backend solo con JWT valido.
                         .anyExchange().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint((exchange, exception) -> writeErrorResponse(
+                                exchange,
+                                objectMapper,
+                                HttpStatus.UNAUTHORIZED,
+                                "Authentication required",
+                                exception
+                        ))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .build();
     }
 
