@@ -11,3 +11,7 @@ target/
 
 .env
 *.log
+
+# Local context notes for the working session.
+*.md
+!/README.md
