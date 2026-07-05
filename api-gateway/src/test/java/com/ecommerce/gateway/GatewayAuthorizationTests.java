@@ -31,6 +31,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "internal.gateway-token=test-internal-gateway-token",
         "spring.cloud.gateway.server.webflux.routes[0].id=authorization-test",
         "spring.cloud.gateway.server.webflux.routes[0].uri=forward:/__gateway-test/ok",
         "spring.cloud.gateway.server.webflux.routes[0].predicates[0]=Path=/api/**"
@@ -94,6 +95,17 @@ class GatewayAuthorizationTests {
                 .jsonPath("$.headers.hasUserEmail").isEqualTo(false)
                 .jsonPath("$.headers.hasUserRoles").isEqualTo(false)
                 .jsonPath("$.headers.hasUserScopes").isEqualTo(false);
+    }
+
+    @Test
+    void gatewayStripsClientInternalGatewayTokenAndInjectsTrustedValue() {
+        webTestClient.post()
+                .uri("/api/auth/login")
+                .header("X-Internal-Gateway-Token", "attacker-token")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.headers.internalGatewayToken").isEqualTo("test-internal-gateway-token");
     }
 
     @Test
@@ -285,6 +297,7 @@ class GatewayAuthorizationTests {
             String userEmail = request.headers().firstHeader("X-User-Email");
             String userRoles = request.headers().firstHeader("X-User-Roles");
             String userScopes = request.headers().firstHeader("X-User-Scopes");
+            String internalGatewayToken = request.headers().firstHeader("X-Internal-Gateway-Token");
 
             headers.put("hasUserId", userId != null);
             headers.put("hasUserEmail", userEmail != null);
@@ -294,6 +307,8 @@ class GatewayAuthorizationTests {
             headers.put("userEmail", userEmail);
             headers.put("userRoles", userRoles);
             headers.put("userScopes", userScopes);
+            headers.put("hasInternalGatewayToken", internalGatewayToken != null);
+            headers.put("internalGatewayToken", internalGatewayToken);
 
             return headers;
         }

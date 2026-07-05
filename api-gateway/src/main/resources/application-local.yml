@@ -3,6 +3,9 @@ spring:
     gateway:
       server:
         webflux:
+          default-filters:
+            - RemoveRequestHeader=X-Internal-Gateway-Token
+            - SetRequestHeader=X-Internal-Gateway-Token, ${internal.gateway-token}
           routes:
             - id: identity-service
               uri: http://localhost:8081
@@ -20,7 +23,6 @@ spring:
                 - Path=/api/identity/v3/api-docs
               filters:
                 - RewritePath=/api/identity/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: catalog-service
               uri: http://localhost:8082
               predicates:
@@ -37,7 +39,6 @@ spring:
                 - Path=/api/catalog/v3/api-docs
               filters:
                 - RewritePath=/api/catalog/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: commerce-service
               uri: http://localhost:8083
               predicates:
@@ -54,4 +55,3 @@ spring:
                 - Path=/api/commerce/v3/api-docs
               filters:
                 - RewritePath=/api/commerce/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}

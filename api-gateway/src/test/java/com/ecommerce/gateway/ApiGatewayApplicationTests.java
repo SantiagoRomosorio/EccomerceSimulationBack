@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.gateway.config.GatewayProperties;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 
@@ -18,6 +19,9 @@ class ApiGatewayApplicationTests {
 
     @Autowired
     private RouteDefinitionLocator routeDefinitionLocator;
+
+    @Autowired
+    private GatewayProperties gatewayProperties;
 
     @Test
     void contextLoads() {
@@ -66,6 +70,19 @@ class ApiGatewayApplicationTests {
         assertOpenApiRoute(routes.get("commerce-openapi"), "/api/commerce/v3/api-docs");
     }
 
+    @Test
+    void injectsInternalGatewayTokenForEveryDownstreamRoute() {
+        assertThat(gatewayProperties.getDefaultFilters())
+                .anySatisfy(filter -> {
+                    assertThat(filter.getName()).isEqualTo("RemoveRequestHeader");
+                    assertThat(filter.getArgs()).containsValue("X-Internal-Gateway-Token");
+                })
+                .anySatisfy(filter -> {
+                    assertThat(filter.getName()).isEqualTo("SetRequestHeader");
+                    assertThat(filter.getArgs()).containsValue("X-Internal-Gateway-Token");
+                });
+    }
+
     private Map<String, RouteDefinition> routeDefinitionsById() {
         return routeDefinitionLocator.getRouteDefinitions()
                 .collectList()
@@ -86,8 +103,5 @@ class ApiGatewayApplicationTests {
         assertThat(route.getFilters())
                 .anySatisfy(filter -> assertThat(filter.getArgs())
                         .containsValues(gatewayPath, "/v3/api-docs"));
-        assertThat(route.getFilters())
-                .anySatisfy(filter -> assertThat(filter.getArgs())
-                        .containsValue("X-Internal-Docs-Token"));
     }
 }

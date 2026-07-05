@@ -8,6 +8,9 @@ spring:
     gateway:
       server:
         webflux:
+          default-filters:
+            - RemoveRequestHeader=X-Internal-Gateway-Token
+            - SetRequestHeader=X-Internal-Gateway-Token, ${internal.gateway-token}
           # Kubernetes resuelve estos nombres por DNS interno.
           # No usamos Eureka ni discovery client de Spring.
           routes:
@@ -27,7 +30,6 @@ spring:
                 - Path=/api/identity/v3/api-docs
               filters:
                 - RewritePath=/api/identity/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: catalog-service
               uri: http://catalog-service:8080
               predicates:
@@ -44,7 +46,6 @@ spring:
                 - Path=/api/catalog/v3/api-docs
               filters:
                 - RewritePath=/api/catalog/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: commerce-service
               uri: http://commerce-service:8080
               predicates:
@@ -61,10 +62,9 @@ spring:
                 - Path=/api/commerce/v3/api-docs
               filters:
                 - RewritePath=/api/commerce/v3/api-docs,/v3/api-docs
-                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
 
-docs:
-  gateway-token: ${DOCS_GATEWAY_TOKEN:local-docs-token-change-me}
+internal:
+  gateway-token: ${INTERNAL_GATEWAY_TOKEN:local-internal-gateway-token-change-me}
 
 springdoc:
   api-docs:

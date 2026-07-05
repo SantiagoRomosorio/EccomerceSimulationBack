@@ -28,6 +28,11 @@ spec:
                 secretKeyRef:
                   name: ecommerce-jwt
                   key: secret
+            - name: INTERNAL_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-internal-gateway
+                  key: token
           ports:
             - containerPort: 8080
           startupProbe:

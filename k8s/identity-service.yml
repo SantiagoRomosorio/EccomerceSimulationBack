@@ -48,6 +48,11 @@ spec:
                   key: secret
             - name: SPRING_PROFILES_ACTIVE
               value: postgres
+            - name: INTERNAL_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-internal-gateway
+                  key: token
             - name: POSTGRES_URL
               value: jdbc:postgresql://identity-postgres:5432/identity_db
             - name: POSTGRES_USER
@@ -63,21 +68,18 @@ spec:
           ports:
             - containerPort: 8080
           startupProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 15
             failureThreshold: 30
             periodSeconds: 5
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 20

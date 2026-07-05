@@ -54,24 +54,26 @@ spec:
                 secretKeyRef:
                   name: catalog-postgres
                   key: password
+            - name: INTERNAL_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-internal-gateway
+                  key: token
           ports:
             - containerPort: 8080
           startupProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 15
             failureThreshold: 30
             periodSeconds: 5
           readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 20
