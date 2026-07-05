@@ -40,6 +40,16 @@ import reactor.core.publisher.Mono;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+    private static final String CATALOG_READ = "SCOPE_catalog:read";
+    private static final String CATALOG_WRITE = "SCOPE_catalog:write";
+    private static final String STOCK_MANAGE = "SCOPE_stock:manage";
+    private static final String CART_MANAGE = "SCOPE_cart:manage";
+    private static final String CHECKOUT_CREATE = "SCOPE_checkout:create";
+    private static final String ORDERS_READ_SELF = "SCOPE_orders:read:self";
+    private static final String ORDERS_PAY_SELF = "SCOPE_orders:pay:self";
+    private static final String ORDERS_CANCEL_SELF = "SCOPE_orders:cancel:self";
+    private static final String USERS_READ_SELF = "SCOPE_users:read:self";
+
     @Bean
     SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http, ObjectMapper objectMapper) {
         return http
@@ -70,6 +80,20 @@ public class SecurityConfig {
                         .pathMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .pathMatchers("/api/identity/health", "/api/catalog/health", "/api/commerce/health").permitAll()
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/docs/**").permitAll()
+                        // Rutas de negocio protegidas por scopes emitidos por identity-service.
+                        .pathMatchers(HttpMethod.GET, "/api/products", "/api/products/**").hasAuthority(CATALOG_READ)
+                        .pathMatchers(HttpMethod.GET, "/api/categories", "/api/categories/**").hasAuthority(CATALOG_READ)
+                        .pathMatchers(HttpMethod.GET, "/api/brands", "/api/brands/**").hasAuthority(CATALOG_READ)
+                        .pathMatchers(HttpMethod.POST, "/api/products", "/api/categories", "/api/brands")
+                        .hasAuthority(CATALOG_WRITE)
+                        .pathMatchers(HttpMethod.PATCH, "/api/products/*/stock").hasAuthority(STOCK_MANAGE)
+                        .pathMatchers("/api/cart", "/api/cart/**").hasAuthority(CART_MANAGE)
+                        .pathMatchers(HttpMethod.POST, "/api/checkout").hasAuthority(CHECKOUT_CREATE)
+                        .pathMatchers(HttpMethod.GET, "/api/orders", "/api/orders/*").hasAuthority(ORDERS_READ_SELF)
+                        .pathMatchers(HttpMethod.POST, "/api/orders/*/payment-confirmations")
+                        .hasAuthority(ORDERS_PAY_SELF)
+                        .pathMatchers(HttpMethod.POST, "/api/orders/*/cancellations").hasAuthority(ORDERS_CANCEL_SELF)
+                        .pathMatchers(HttpMethod.GET, "/api/users/me").hasAuthority(USERS_READ_SELF)
                         // Todo lo demas entra al backend solo con JWT valido.
                         .anyExchange().authenticated()
                 )
