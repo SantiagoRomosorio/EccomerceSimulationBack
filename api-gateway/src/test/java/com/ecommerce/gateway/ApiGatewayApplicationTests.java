@@ -30,10 +30,13 @@ class ApiGatewayApplicationTests {
         assertThat(routes).containsOnlyKeys(
                 "identity-service",
                 "identity-health",
+                "identity-openapi",
                 "catalog-service",
                 "catalog-health",
+                "catalog-openapi",
                 "commerce-service",
-                "commerce-health"
+                "commerce-health",
+                "commerce-openapi"
         );
 
         assertRoute(routes.get("identity-service"), "http://identity-service:8080", "/api/auth/**", "/api/users/**");
@@ -42,6 +45,9 @@ class ApiGatewayApplicationTests {
         assertRoute(routes.get("identity-health"), "http://identity-service:8080", "/api/identity/health");
         assertRoute(routes.get("catalog-health"), "http://catalog-service:8080", "/api/catalog/health");
         assertRoute(routes.get("commerce-health"), "http://commerce-service:8080", "/api/commerce/health");
+        assertRoute(routes.get("identity-openapi"), "http://identity-service:8080", "/api/identity/v3/api-docs");
+        assertRoute(routes.get("catalog-openapi"), "http://catalog-service:8080", "/api/catalog/v3/api-docs");
+        assertRoute(routes.get("commerce-openapi"), "http://commerce-service:8080", "/api/commerce/v3/api-docs");
 
         assertThat(routes.get("identity-health").getFilters())
                 .anySatisfy(filter -> assertThat(filter.getArgs())
@@ -54,6 +60,10 @@ class ApiGatewayApplicationTests {
         assertThat(routes.get("commerce-health").getFilters())
                 .anySatisfy(filter -> assertThat(filter.getArgs())
                         .containsValues("/api/commerce/health", "/api/health"));
+
+        assertOpenApiRoute(routes.get("identity-openapi"), "/api/identity/v3/api-docs");
+        assertOpenApiRoute(routes.get("catalog-openapi"), "/api/catalog/v3/api-docs");
+        assertOpenApiRoute(routes.get("commerce-openapi"), "/api/commerce/v3/api-docs");
     }
 
     private Map<String, RouteDefinition> routeDefinitionsById() {
@@ -70,5 +80,14 @@ class ApiGatewayApplicationTests {
         assertThat(route.getPredicates())
                 .anySatisfy(predicate -> assertThat(predicate.getArgs())
                         .containsValues(pathPatterns));
+    }
+
+    private void assertOpenApiRoute(RouteDefinition route, String gatewayPath) {
+        assertThat(route.getFilters())
+                .anySatisfy(filter -> assertThat(filter.getArgs())
+                        .containsValues(gatewayPath, "/v3/api-docs"));
+        assertThat(route.getFilters())
+                .anySatisfy(filter -> assertThat(filter.getArgs())
+                        .containsValue("X-Internal-Docs-Token"));
     }
 }

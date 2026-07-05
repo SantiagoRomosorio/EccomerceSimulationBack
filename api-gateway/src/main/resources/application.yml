@@ -21,6 +21,13 @@ spring:
                 - Path=/api/identity/health
               filters:
                 - RewritePath=/api/identity/health,/api/health
+            - id: identity-openapi
+              uri: http://identity-service:8080
+              predicates:
+                - Path=/api/identity/v3/api-docs
+              filters:
+                - RewritePath=/api/identity/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: catalog-service
               uri: http://catalog-service:8080
               predicates:
@@ -31,6 +38,13 @@ spring:
                 - Path=/api/catalog/health
               filters:
                 - RewritePath=/api/catalog/health,/api/health
+            - id: catalog-openapi
+              uri: http://catalog-service:8080
+              predicates:
+                - Path=/api/catalog/v3/api-docs
+              filters:
+                - RewritePath=/api/catalog/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: commerce-service
               uri: http://commerce-service:8080
               predicates:
@@ -41,6 +55,29 @@ spring:
                 - Path=/api/commerce/health
               filters:
                 - RewritePath=/api/commerce/health,/api/health
+            - id: commerce-openapi
+              uri: http://commerce-service:8080
+              predicates:
+                - Path=/api/commerce/v3/api-docs
+              filters:
+                - RewritePath=/api/commerce/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
+
+docs:
+  gateway-token: ${DOCS_GATEWAY_TOKEN:local-docs-token-change-me}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Identity
+        url: /api/identity/v3/api-docs
+      - name: Catalog
+        url: /api/catalog/v3/api-docs
+      - name: Commerce
+        url: /api/commerce/v3/api-docs
 
 security:
   jwt:

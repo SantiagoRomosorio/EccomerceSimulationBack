@@ -61,7 +61,10 @@ class GatewayAuthorizationTests {
             "POST,/api/auth/register",
             "GET,/api/identity/health",
             "GET,/api/catalog/health",
-            "GET,/api/commerce/health"
+            "GET,/api/commerce/health",
+            "GET,/api/identity/v3/api-docs",
+            "GET,/api/catalog/v3/api-docs",
+            "GET,/api/commerce/v3/api-docs"
     })
     void publicRoutesAllowRequestsWithoutJwt(HttpMethod method, String path) {
         webTestClient.method(method)

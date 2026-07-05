@@ -79,6 +79,8 @@ public class SecurityConfig {
                         // Health checks y documentacion no deben exigir JWT.
                         .pathMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .pathMatchers("/api/identity/health", "/api/catalog/health", "/api/commerce/health").permitAll()
+                        .pathMatchers("/api/identity/v3/api-docs", "/api/catalog/v3/api-docs",
+                                "/api/commerce/v3/api-docs").permitAll()
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/docs/**").permitAll()
                         // Rutas de negocio protegidas por scopes emitidos por identity-service.
                         .pathMatchers(HttpMethod.GET, "/api/products", "/api/products/**").hasAuthority(CATALOG_READ)

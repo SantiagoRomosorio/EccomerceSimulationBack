@@ -27,10 +27,13 @@ class ApiGatewayLocalProfileTests {
 
         assertThat(routes.get("identity-service").getUri()).isEqualTo(URI.create("http://localhost:8081"));
         assertThat(routes.get("identity-health").getUri()).isEqualTo(URI.create("http://localhost:8081"));
+        assertThat(routes.get("identity-openapi").getUri()).isEqualTo(URI.create("http://localhost:8081"));
         assertThat(routes.get("catalog-service").getUri()).isEqualTo(URI.create("http://localhost:8082"));
         assertThat(routes.get("catalog-health").getUri()).isEqualTo(URI.create("http://localhost:8082"));
+        assertThat(routes.get("catalog-openapi").getUri()).isEqualTo(URI.create("http://localhost:8082"));
         assertThat(routes.get("commerce-service").getUri()).isEqualTo(URI.create("http://localhost:8083"));
         assertThat(routes.get("commerce-health").getUri()).isEqualTo(URI.create("http://localhost:8083"));
+        assertThat(routes.get("commerce-openapi").getUri()).isEqualTo(URI.create("http://localhost:8083"));
     }
 
     private Map<String, RouteDefinition> routeDefinitionsById() {

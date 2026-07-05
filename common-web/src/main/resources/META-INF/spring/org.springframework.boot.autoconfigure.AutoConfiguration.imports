@@ -1,2 +1,3 @@
 com.ecommerce.common.web.autoconfigure.CommonWebAutoConfiguration
 com.ecommerce.common.web.autoconfigure.CommonExceptionHandlerAutoConfiguration
+com.ecommerce.common.web.autoconfigure.InternalOpenApiAccessAutoConfiguration

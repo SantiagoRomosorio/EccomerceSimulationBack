@@ -14,6 +14,13 @@ spring:
                 - Path=/api/identity/health
               filters:
                 - RewritePath=/api/identity/health,/api/health
+            - id: identity-openapi
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/identity/v3/api-docs
+              filters:
+                - RewritePath=/api/identity/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: catalog-service
               uri: http://localhost:8082
               predicates:
@@ -24,6 +31,13 @@ spring:
                 - Path=/api/catalog/health
               filters:
                 - RewritePath=/api/catalog/health,/api/health
+            - id: catalog-openapi
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/catalog/v3/api-docs
+              filters:
+                - RewritePath=/api/catalog/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
             - id: commerce-service
               uri: http://localhost:8083
               predicates:
@@ -34,3 +48,10 @@ spring:
                 - Path=/api/commerce/health
               filters:
                 - RewritePath=/api/commerce/health,/api/health
+            - id: commerce-openapi
+              uri: http://localhost:8083
+              predicates:
+                - Path=/api/commerce/v3/api-docs
+              filters:
+                - RewritePath=/api/commerce/v3/api-docs,/v3/api-docs
+                - SetRequestHeader=X-Internal-Docs-Token, ${docs.gateway-token}
