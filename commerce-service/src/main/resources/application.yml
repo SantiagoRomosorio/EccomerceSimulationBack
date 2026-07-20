@@ -5,13 +5,10 @@ spring:
   application:
     name: commerce-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: sa
-    password:
+    url: ${COMMERCE_DB_URL:jdbc:postgresql://localhost:5432/commercedb}
+    username: ${COMMERCE_DB_USERNAME:commerce}
+    password: ${COMMERCE_DB_PASSWORD:commerce}
     driver-class-name: org.postgresql.Driver
-  postgres:
-    console:
-      enabled: true
   jpa:
     hibernate:
       ddl-auto: update

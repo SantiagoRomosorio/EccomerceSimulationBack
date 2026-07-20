@@ -6,9 +6,6 @@ spring:
     username: ${POSTGRES_USER:identity_user}
     password: ${POSTGRES_PASSWORD:identity_password}
     driver-class-name: org.postgresql.Driver
-  postgres:
-    console:
-      enabled: false
   jpa:
     hibernate:
       # Suficiente para desarrollo. En produccion lo cambiaremos por Flyway/Liquibase.

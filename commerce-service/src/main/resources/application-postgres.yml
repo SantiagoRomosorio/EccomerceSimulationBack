@@ -4,9 +4,6 @@ spring:
     username: ${COMMERCE_DB_USERNAME:commerce}
     password: ${COMMERCE_DB_PASSWORD:commerce}
     driver-class-name: org.postgresql.Driver
-  postgres:
-    console:
-      enabled: false
   jpa:
     hibernate:
       ddl-auto: update

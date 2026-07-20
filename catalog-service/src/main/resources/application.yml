@@ -6,15 +6,10 @@ spring:
   application:
     name: catalog-service
   datasource:
-    # PostgreSQL permite trabajar local sin depender de Docker. PostgreSQL queda listo por profile.
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: sa
-    password:
+    url: ${CATALOG_DB_URL:jdbc:postgresql://localhost:5432/catalogdb}
+    username: ${CATALOG_DB_USERNAME:catalog}
+    password: ${CATALOG_DB_PASSWORD:catalog}
     driver-class-name: org.postgresql.Driver
-  postgres:
-    console:
-      enabled: true
-      path: /postgres-console
   jpa:
     hibernate:
       ddl-auto: update

@@ -6,15 +6,10 @@ spring:
   application:
     name: identity-service
   datasource:
-    # PostgreSQL mantiene el servicio runnable localmente. En Kubernetes cambiaremos a PostgreSQL.
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: sa
-    password:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/identity_db}
+    username: ${POSTGRES_USER:identity_user}
+    password: ${POSTGRES_PASSWORD:identity_password}
     driver-class-name: org.postgresql.Driver
-  postgres:
-    console:
-      enabled: true
-      path: /postgres-console
   jpa:
     hibernate:
       ddl-auto: update

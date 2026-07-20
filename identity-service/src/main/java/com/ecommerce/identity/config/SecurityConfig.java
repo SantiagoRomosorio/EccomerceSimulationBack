@@ -21,7 +21,6 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
-            "/postgres-console/**",
             "/api/health"
     };
 
@@ -31,7 +30,6 @@ public class SecurityConfig {
                 // JWT se valida en api-gateway. Este servicio solo emite tokens y confia
                 // en headers internos X-User-* para endpoints protegidos.
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
