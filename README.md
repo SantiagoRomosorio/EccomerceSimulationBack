@@ -58,6 +58,10 @@ comprueba PostgreSQL y espera a que todos los health checks respondan `UP`.
 Los procesos se ejecutan en segundo plano y sus logs quedan en
 `%LOCALAPPDATA%\EcommerceSimulationBack\logs`.
 
+Al iniciar `catalog-service` con ese perfil se crean o actualizan cinco productos
+de demostración de forma idempotente. Si alguno ya existe, se conserva su stock
+actual para que reiniciar el servicio no reponga unidades vendidas o reservadas.
+
 ```powershell
 .\scripts\windows\local.cmd status
 .\scripts\windows\local.cmd stop
