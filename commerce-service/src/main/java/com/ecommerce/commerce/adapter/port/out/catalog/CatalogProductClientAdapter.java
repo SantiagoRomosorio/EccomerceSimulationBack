@@ -2,6 +2,7 @@ package com.ecommerce.commerce.adapter.port.out.catalog;
 
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.config.properties.CatalogClientProperties;
+import com.ecommerce.commerce.domain.exception.CatalogUnavailableException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import com.ecommerce.common.web.response.ApiResponse;
 import java.math.BigDecimal;
@@ -11,6 +12,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @Component
@@ -58,6 +61,8 @@ public class CatalogProductClientAdapter implements ProductCatalogPort {
             }
 
             throw exception;
+        } catch (HttpServerErrorException | ResourceAccessException exception) {
+            throw new CatalogUnavailableException(exception);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.ecommerce.commerce.adapter.port.in.controller;
 
 import com.ecommerce.commerce.domain.exception.DomainException;
+import com.ecommerce.commerce.domain.exception.CatalogUnavailableException;
 import com.ecommerce.commerce.domain.exception.InventoryReservationException;
 import com.ecommerce.commerce.domain.exception.InvalidOrderStateException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
@@ -132,6 +133,10 @@ public class GlobalExceptionHandler {
     }
 
     private ApiStatusCode statusFor(DomainException exception) {
+        if (exception instanceof CatalogUnavailableException) {
+            return ApiStatusCode.SERVICE_UNAVAILABLE;
+        }
+
         if (exception instanceof ResourceNotFoundException) {
             return ApiStatusCode.NOT_FOUND;
         }

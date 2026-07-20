@@ -2,6 +2,7 @@ package com.ecommerce.commerce.adapter.port.out.catalog;
 
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.config.properties.CatalogClientProperties;
+import com.ecommerce.commerce.domain.exception.CatalogUnavailableException;
 import com.ecommerce.commerce.domain.exception.InventoryReservationException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.UUID;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @Component
@@ -49,6 +52,8 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
             throw new InventoryReservationException("Catalog rejected stock reservation", Map.of(
                     "catalogStatus", exception.getStatusCode().value()
             ));
+        } catch (HttpServerErrorException | ResourceAccessException exception) {
+            throw new CatalogUnavailableException(exception);
         }
     }
 
@@ -70,6 +75,8 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
             throw new InventoryReservationException("Catalog rejected stock release", Map.of(
                     "catalogStatus", exception.getStatusCode().value()
             ));
+        } catch (HttpServerErrorException | ResourceAccessException exception) {
+            throw new CatalogUnavailableException(exception);
         }
     }
 

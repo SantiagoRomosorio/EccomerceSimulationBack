@@ -29,3 +29,5 @@ management:
 clients:
   catalog:
     base-url: ${CATALOG_SERVICE_URL:http://localhost:8082}
+    connect-timeout: ${CATALOG_CONNECT_TIMEOUT:2s}
+    read-timeout: ${CATALOG_READ_TIMEOUT:5s}
