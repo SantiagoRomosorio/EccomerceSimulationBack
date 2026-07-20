@@ -118,8 +118,11 @@ public class CatalogService implements CreateCategoryUseCase, ListCategoriesUseC
     }
 
     @Override
+    @Transactional
     public Product updateStock(UUID productId, UpdateProductStockUseCase.Command command) {
-        Product product = getById(productId).withStockQuantity(command.stockQuantity());
+        Product product = productRepository.findProductByIdForUpdate(productId)
+                .orElseThrow(() -> productNotFound(productId))
+                .withStockQuantity(command.stockQuantity());
         return productRepository.save(product);
     }
 

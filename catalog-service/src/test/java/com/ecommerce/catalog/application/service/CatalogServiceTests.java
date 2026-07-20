@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ecommerce.catalog.application.port.in.ReserveProductStockUseCase;
+import com.ecommerce.catalog.application.port.in.UpdateProductStockUseCase;
 import com.ecommerce.catalog.application.port.out.BrandRepositoryPort;
 import com.ecommerce.catalog.application.port.out.CategoryRepositoryPort;
 import com.ecommerce.catalog.application.port.out.ProductRepositoryPort;
@@ -55,6 +56,37 @@ class CatalogServiceTests {
                 productRepository,
                 stockReservationRepository
         );
+    }
+
+    @Test
+    void updateStockLocksProductBeforeSaving() {
+        Product product = productWithStock(7);
+        when(productRepository.findProductByIdForUpdate(product.id())).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Product result = service.updateStock(product.id(), new UpdateProductStockUseCase.Command(12));
+
+        assertThat(result.stockQuantity()).isEqualTo(12);
+        InOrder updateOrder = inOrder(productRepository);
+        updateOrder.verify(productRepository).findProductByIdForUpdate(product.id());
+        updateOrder.verify(productRepository).save(any(Product.class));
+        verify(productRepository, never()).findProductById(product.id());
+    }
+
+    @Test
+    void updateStockReturnsNotFoundWhenLockedProductDoesNotExist() {
+        UUID productId = UUID.randomUUID();
+        when(productRepository.findProductByIdForUpdate(productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateStock(
+                productId,
+                new UpdateProductStockUseCase.Command(12)
+        ))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Product not found");
+
+        verify(productRepository, never()).findProductById(productId);
+        verify(productRepository, never()).save(any(Product.class));
     }
 
     @Test
