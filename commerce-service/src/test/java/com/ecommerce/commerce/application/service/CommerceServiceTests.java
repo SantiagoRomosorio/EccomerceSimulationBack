@@ -3,24 +3,32 @@ package com.ecommerce.commerce.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ecommerce.commerce.application.port.in.AddCartItemUseCase;
+import com.ecommerce.commerce.application.port.in.CancelOrderUseCase;
 import com.ecommerce.commerce.application.port.in.CheckoutUseCase;
+import com.ecommerce.commerce.application.port.in.ConfirmOrderPaymentUseCase;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
 import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
+import com.ecommerce.commerce.application.port.out.OrderTransitionPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.domain.exception.InvalidCartException;
+import com.ecommerce.commerce.domain.exception.InvalidOrderStateException;
 import com.ecommerce.commerce.domain.model.Cart;
 import com.ecommerce.commerce.domain.model.CartItem;
 import com.ecommerce.commerce.domain.model.Order;
 import com.ecommerce.commerce.domain.model.OrderAddress;
+import com.ecommerce.commerce.domain.model.OrderStatus;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +53,9 @@ class CommerceServiceTests {
     private OrderRepositoryPort orderRepository;
 
     @Mock
+    private OrderTransitionPort orderTransitionPort;
+
+    @Mock
     private ProductCatalogPort productCatalogPort;
 
     @Mock
@@ -58,6 +69,7 @@ class CommerceServiceTests {
                 cartRepository,
                 checkoutPersistencePort,
                 orderRepository,
+                orderTransitionPort,
                 productCatalogPort,
                 productInventoryPort
         );
@@ -249,5 +261,363 @@ class CommerceServiceTests {
         ArgumentCaptor<UUID> reservationId = ArgumentCaptor.forClass(UUID.class);
         verify(productInventoryPort).reserveStock(reservationId.capture(), any());
         verify(productInventoryPort).releaseStock(reservationId.getValue());
+    }
+
+    @Test
+    void confirmsPaymentWithConditionalTransition() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order pendingOrder = order(
+                orderId,
+                userId,
+                OrderStatus.PENDING_PAYMENT,
+                null,
+                null,
+                null
+        );
+        Order confirmedOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CONFIRMED,
+                "CARD",
+                "payment-001",
+                null
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId))
+                .thenReturn(Optional.of(pendingOrder), Optional.of(confirmedOrder));
+        when(orderTransitionPort.confirmPayment(any(), any(), any(), any(), any())).thenReturn(true);
+
+        Order result = service.confirmPayment(
+                userId,
+                orderId,
+                new ConfirmOrderPaymentUseCase.Command("CARD", "payment-001")
+        );
+
+        assertThat(result).isEqualTo(confirmedOrder);
+        verify(orderTransitionPort).confirmPayment(
+                any(UUID.class),
+                any(UUID.class),
+                any(String.class),
+                any(String.class),
+                any(Instant.class)
+        );
+    }
+
+    @Test
+    void repeatedPaymentWithSameMethodAndReferenceIsIdempotent() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order confirmedOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CONFIRMED,
+                "CARD",
+                "payment-001",
+                null
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(Optional.of(confirmedOrder));
+
+        Order result = service.confirmPayment(
+                userId,
+                orderId,
+                new ConfirmOrderPaymentUseCase.Command("CARD", "payment-001")
+        );
+
+        assertThat(result).isEqualTo(confirmedOrder);
+        verify(orderTransitionPort, never()).confirmPayment(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void concurrentIdenticalPaymentReturnsTheWinningConfirmation() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order pendingOrder = order(orderId, userId, OrderStatus.PENDING_PAYMENT, null, null, null);
+        Order confirmedOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CONFIRMED,
+                "CARD",
+                "payment-001",
+                null
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId))
+                .thenReturn(Optional.of(pendingOrder), Optional.of(confirmedOrder));
+        when(orderTransitionPort.confirmPayment(any(), any(), any(), any(), any())).thenReturn(false);
+
+        Order result = service.confirmPayment(
+                userId,
+                orderId,
+                new ConfirmOrderPaymentUseCase.Command("CARD", "payment-001")
+        );
+
+        assertThat(result).isEqualTo(confirmedOrder);
+    }
+
+    @Test
+    void repeatedPaymentWithDifferentReferenceIsRejected() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order confirmedOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CONFIRMED,
+                "CARD",
+                "payment-001",
+                null
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(Optional.of(confirmedOrder));
+
+        assertThatThrownBy(() -> service.confirmPayment(
+                userId,
+                orderId,
+                new ConfirmOrderPaymentUseCase.Command("CARD", "payment-002")
+        ))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessage("Order cannot be paid in current state");
+
+        verify(orderTransitionPort, never()).confirmPayment(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void paymentDuringCancellationIsRejected() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order cancellationPendingOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CANCELLATION_PENDING,
+                null,
+                null,
+                "Customer request"
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId))
+                .thenReturn(Optional.of(cancellationPendingOrder));
+
+        assertThatThrownBy(() -> service.confirmPayment(
+                userId,
+                orderId,
+                new ConfirmOrderPaymentUseCase.Command("CARD", "payment-001")
+        ))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessage("Order cannot be paid in current state");
+
+        verify(orderTransitionPort, never()).confirmPayment(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void claimsCancellationBeforeReleasingStockAndThenCompletesIt() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String reason = "Customer request";
+        Order pendingOrder = order(orderId, userId, OrderStatus.PENDING_PAYMENT, null, null, null);
+        Order cancellationPendingOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CANCELLATION_PENDING,
+                null,
+                null,
+                reason
+        );
+        Order cancelledOrder = order(orderId, userId, OrderStatus.CANCELLED, null, null, reason);
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(
+                Optional.of(pendingOrder),
+                Optional.of(cancellationPendingOrder),
+                Optional.of(cancelledOrder)
+        );
+        when(orderTransitionPort.beginCancellation(orderId, userId, reason)).thenReturn(true);
+        when(orderTransitionPort.completeCancellation(any(), any(), any())).thenReturn(true);
+
+        Order result = service.cancelOrder(
+                userId,
+                orderId,
+                new CancelOrderUseCase.Command(reason)
+        );
+
+        assertThat(result).isEqualTo(cancelledOrder);
+        InOrder calls = inOrder(orderTransitionPort, productInventoryPort);
+        calls.verify(orderTransitionPort).beginCancellation(orderId, userId, reason);
+        calls.verify(productInventoryPort).releaseStock(orderId);
+        calls.verify(orderTransitionPort).completeCancellation(
+                any(UUID.class),
+                any(UUID.class),
+                any(Instant.class)
+        );
+    }
+
+    @Test
+    void cancellationLosingToConcurrentPaymentDoesNotReleaseStock() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String reason = "Customer request";
+        Order pendingOrder = order(orderId, userId, OrderStatus.PENDING_PAYMENT, null, null, null);
+        Order confirmedOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CONFIRMED,
+                "CARD",
+                "payment-001",
+                null
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId))
+                .thenReturn(Optional.of(pendingOrder), Optional.of(confirmedOrder));
+        when(orderTransitionPort.beginCancellation(orderId, userId, reason)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.cancelOrder(
+                userId,
+                orderId,
+                new CancelOrderUseCase.Command(reason)
+        ))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessage("Order cannot be cancelled in current state");
+
+        verify(productInventoryPort, never()).releaseStock(any());
+        verify(orderTransitionPort, never()).completeCancellation(any(), any(), any());
+    }
+
+    @Test
+    void retriesStockReleaseWhenCancellationRemainsPending() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String reason = "Customer request";
+        Order cancellationPendingOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CANCELLATION_PENDING,
+                null,
+                null,
+                reason
+        );
+        Order cancelledOrder = order(orderId, userId, OrderStatus.CANCELLED, null, null, reason);
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(
+                Optional.of(cancellationPendingOrder),
+                Optional.of(cancellationPendingOrder),
+                Optional.of(cancelledOrder)
+        );
+        doThrow(new IllegalStateException("Catalog unavailable"))
+                .doNothing()
+                .when(productInventoryPort)
+                .releaseStock(orderId);
+        when(orderTransitionPort.completeCancellation(any(), any(), any())).thenReturn(true);
+        CancelOrderUseCase.Command command = new CancelOrderUseCase.Command(reason);
+
+        assertThatThrownBy(() -> service.cancelOrder(userId, orderId, command))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Catalog unavailable");
+
+        Order result = service.cancelOrder(userId, orderId, command);
+
+        assertThat(result).isEqualTo(cancelledOrder);
+        verify(productInventoryPort, times(2)).releaseStock(orderId);
+        verify(orderTransitionPort).completeCancellation(any(), any(), any());
+        verify(orderTransitionPort, never()).beginCancellation(any(), any(), any());
+    }
+
+    @Test
+    void repeatedCancellationWithSameReasonIsIdempotent() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        String reason = "Customer request";
+        Order cancelledOrder = order(orderId, userId, OrderStatus.CANCELLED, null, null, reason);
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(Optional.of(cancelledOrder));
+
+        Order result = service.cancelOrder(
+                userId,
+                orderId,
+                new CancelOrderUseCase.Command(reason)
+        );
+
+        assertThat(result).isEqualTo(cancelledOrder);
+        verify(productInventoryPort, never()).releaseStock(any());
+        verify(orderTransitionPort, never()).beginCancellation(any(), any(), any());
+        verify(orderTransitionPort, never()).completeCancellation(any(), any(), any());
+    }
+
+    @Test
+    void repeatedCancellationWithDifferentReasonIsRejected() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order cancelledOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CANCELLED,
+                null,
+                null,
+                "Original reason"
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId)).thenReturn(Optional.of(cancelledOrder));
+
+        assertThatThrownBy(() -> service.cancelOrder(
+                userId,
+                orderId,
+                new CancelOrderUseCase.Command("Different reason")
+        ))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessage("Order cannot be cancelled in current state");
+
+        verify(productInventoryPort, never()).releaseStock(any());
+    }
+
+    @Test
+    void cancellationPendingWithDifferentReasonIsRejected() {
+        UUID userId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        Order cancellationPendingOrder = order(
+                orderId,
+                userId,
+                OrderStatus.CANCELLATION_PENDING,
+                null,
+                null,
+                "Original reason"
+        );
+        when(orderRepository.findByIdAndUserId(orderId, userId))
+                .thenReturn(Optional.of(cancellationPendingOrder));
+
+        assertThatThrownBy(() -> service.cancelOrder(
+                userId,
+                orderId,
+                new CancelOrderUseCase.Command("Different reason")
+        ))
+                .isInstanceOf(InvalidOrderStateException.class)
+                .hasMessage("Order cannot be cancelled in current state");
+
+        verify(productInventoryPort, never()).releaseStock(any());
+        verify(orderTransitionPort, never()).completeCancellation(any(), any(), any());
+    }
+
+    private Order order(
+            UUID orderId,
+            UUID userId,
+            OrderStatus status,
+            String paymentMethod,
+            String paymentReference,
+            String cancellationReason
+    ) {
+        OrderAddress address = new OrderAddress(
+                "Buyer",
+                "123 Main Street",
+                null,
+                "Bogota",
+                "Cundinamarca",
+                "110111",
+                "CO",
+                "+5700000000"
+        );
+        return new Order(
+                orderId,
+                userId,
+                status,
+                "USD",
+                BigDecimal.TEN,
+                address,
+                address,
+                null,
+                paymentMethod,
+                paymentReference,
+                paymentMethod == null ? null : Instant.parse("2026-01-01T00:00:00Z"),
+                cancellationReason,
+                status == OrderStatus.CANCELLED ? Instant.parse("2026-01-02T00:00:00Z") : null,
+                Instant.parse("2026-01-01T00:00:00Z"),
+                List.of()
+        );
     }
 }

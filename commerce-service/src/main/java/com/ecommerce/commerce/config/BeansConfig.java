@@ -3,6 +3,7 @@ package com.ecommerce.commerce.config;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
 import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
+import com.ecommerce.commerce.application.port.out.OrderTransitionPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.application.service.CommerceService;
@@ -17,6 +18,7 @@ public class BeansConfig {
             CartRepositoryPort cartRepository,
             CheckoutPersistencePort checkoutPersistencePort,
             OrderRepositoryPort orderRepository,
+            OrderTransitionPort orderTransitionPort,
             ProductCatalogPort productCatalogPort,
             ProductInventoryPort productInventoryPort
     ) {
@@ -24,6 +26,7 @@ public class BeansConfig {
                 cartRepository,
                 checkoutPersistencePort,
                 orderRepository,
+                orderTransitionPort,
                 productCatalogPort,
                 productInventoryPort
         );

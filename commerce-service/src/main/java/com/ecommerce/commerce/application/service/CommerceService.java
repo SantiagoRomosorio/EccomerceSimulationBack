@@ -12,6 +12,7 @@ import com.ecommerce.commerce.application.port.in.UpdateCartItemQuantityUseCase;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
 import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
+import com.ecommerce.commerce.application.port.out.OrderTransitionPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.domain.exception.InvalidCartException;
@@ -26,6 +27,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
@@ -37,6 +39,7 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
     private final CartRepositoryPort cartRepository;
     private final CheckoutPersistencePort checkoutPersistencePort;
     private final OrderRepositoryPort orderRepository;
+    private final OrderTransitionPort orderTransitionPort;
     private final ProductCatalogPort productCatalogPort;
     private final ProductInventoryPort productInventoryPort;
 
@@ -44,12 +47,14 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
             CartRepositoryPort cartRepository,
             CheckoutPersistencePort checkoutPersistencePort,
             OrderRepositoryPort orderRepository,
+            OrderTransitionPort orderTransitionPort,
             ProductCatalogPort productCatalogPort,
             ProductInventoryPort productInventoryPort
     ) {
         this.cartRepository = cartRepository;
         this.checkoutPersistencePort = checkoutPersistencePort;
         this.orderRepository = orderRepository;
+        this.orderTransitionPort = orderTransitionPort;
         this.productCatalogPort = productCatalogPort;
         this.productInventoryPort = productInventoryPort;
     }
@@ -211,61 +216,61 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
     @Override
     public Order confirmPayment(UUID userId, UUID orderId, ConfirmOrderPaymentUseCase.Command command) {
         Order order = getOrder(userId, orderId);
-        if (order.status() != OrderStatus.PENDING_PAYMENT) {
-            throw new InvalidOrderStateException("Order cannot be paid in current state", Map.of(
-                    "orderId", orderId,
-                    "status", order.status()
-            ));
+        if (isSamePaymentConfirmation(order, command)) {
+            return order;
         }
 
-        return orderRepository.save(new Order(
-                order.id(),
-                order.userId(),
-                OrderStatus.CONFIRMED,
-                order.currency(),
-                order.total(),
-                order.shippingAddress(),
-                order.billingAddress(),
-                order.notes(),
+        if (order.status() != OrderStatus.PENDING_PAYMENT) {
+            throw invalidPaymentState(order);
+        }
+
+        boolean transitioned = orderTransitionPort.confirmPayment(
+                orderId,
+                userId,
                 command.paymentMethod(),
                 command.providerReference(),
-                Instant.now(),
-                order.cancellationReason(),
-                order.cancelledAt(),
-                order.createdAt(),
-                order.items()
-        ));
+                Instant.now()
+        );
+        Order currentOrder = getOrder(userId, orderId);
+
+        if (transitioned || isSamePaymentConfirmation(currentOrder, command)) {
+            return currentOrder;
+        }
+
+        throw invalidPaymentState(currentOrder);
     }
 
     @Override
     public Order cancelOrder(UUID userId, UUID orderId, CancelOrderUseCase.Command command) {
         Order order = getOrder(userId, orderId);
-        if (order.status() != OrderStatus.PENDING_PAYMENT) {
-            throw new InvalidOrderStateException("Order cannot be cancelled in current state", Map.of(
-                    "orderId", orderId,
-                    "status", order.status()
-            ));
+
+        if (order.status() == OrderStatus.CANCELLED) {
+            return resolveCompletedCancellation(order, command);
         }
 
-        productInventoryPort.releaseStock(order.id());
+        if (order.status() == OrderStatus.PENDING_PAYMENT) {
+            orderTransitionPort.beginCancellation(orderId, userId, command.reason());
+            order = getOrder(userId, orderId);
+        }
 
-        return orderRepository.save(new Order(
-                order.id(),
-                order.userId(),
-                OrderStatus.CANCELLED,
-                order.currency(),
-                order.total(),
-                order.shippingAddress(),
-                order.billingAddress(),
-                order.notes(),
-                order.paymentMethod(),
-                order.paymentReference(),
-                order.paidAt(),
-                command.reason(),
-                Instant.now(),
-                order.createdAt(),
-                order.items()
-        ));
+        if (order.status() == OrderStatus.CANCELLED) {
+            return resolveCompletedCancellation(order, command);
+        }
+
+        if (order.status() != OrderStatus.CANCELLATION_PENDING
+                || !Objects.equals(order.cancellationReason(), command.reason())) {
+            throw invalidCancellationState(order);
+        }
+
+        productInventoryPort.releaseStock(orderId);
+
+        boolean transitioned = orderTransitionPort.completeCancellation(orderId, userId, Instant.now());
+        Order currentOrder = getOrder(userId, orderId);
+        if (transitioned) {
+            return currentOrder;
+        }
+
+        return resolveCompletedCancellation(currentOrder, command);
     }
 
     private Cart getExistingCart(UUID userId) {
@@ -311,6 +316,38 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 "currentQuantity", currentQuantity,
                 "quantityToAdd", quantityToAdd,
                 "maximumQuantity", MAX_CART_ITEM_QUANTITY
+        ));
+    }
+
+    private boolean isSamePaymentConfirmation(
+            Order order,
+            ConfirmOrderPaymentUseCase.Command command
+    ) {
+        return order.status() == OrderStatus.CONFIRMED
+                && Objects.equals(order.paymentMethod(), command.paymentMethod())
+                && Objects.equals(order.paymentReference(), command.providerReference());
+    }
+
+    private Order resolveCompletedCancellation(Order order, CancelOrderUseCase.Command command) {
+        if (order.status() == OrderStatus.CANCELLED
+                && Objects.equals(order.cancellationReason(), command.reason())) {
+            return order;
+        }
+
+        throw invalidCancellationState(order);
+    }
+
+    private InvalidOrderStateException invalidPaymentState(Order order) {
+        return new InvalidOrderStateException("Order cannot be paid in current state", Map.of(
+                "orderId", order.id(),
+                "status", order.status()
+        ));
+    }
+
+    private InvalidOrderStateException invalidCancellationState(Order order) {
+        return new InvalidOrderStateException("Order cannot be cancelled in current state", Map.of(
+                "orderId", order.id(),
+                "status", order.status()
         ));
     }
 }
