@@ -1,7 +1,7 @@
 package com.ecommerce.common.web.error;
 
-import com.ecommerce.common.web.response.ApiResult;
-import com.ecommerce.common.web.response.ApiResultFactory;
+import com.ecommerce.common.web.response.ApiResponse;
+import com.ecommerce.common.web.response.ApiResponseFactory;
 import com.ecommerce.common.web.response.ApiStatusCode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
@@ -17,14 +17,14 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CommonNotFoundExceptionHandler {
 
-    private final ApiResultFactory responseFactory;
+    private final ApiResponseFactory responseFactory;
 
-    public CommonNotFoundExceptionHandler(ApiResultFactory responseFactory) {
+    public CommonNotFoundExceptionHandler(ApiResponseFactory responseFactory) {
         this.responseFactory = responseFactory;
     }
 
     @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
-    public ResponseEntity<ApiResult<Object>> handleNotFound(
+    public ResponseEntity<ApiResponse<Object>> handleNotFound(
             Exception exception,
             HttpServletRequest request
     ) {

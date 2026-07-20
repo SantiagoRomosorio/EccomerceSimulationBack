@@ -1,7 +1,7 @@
 package com.ecommerce.common.web.autoconfigure;
 
 import com.ecommerce.common.web.error.CommonNotFoundExceptionHandler;
-import com.ecommerce.common.web.response.ApiResultFactory;
+import com.ecommerce.common.web.response.ApiResponseFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -13,7 +13,7 @@ public class CommonExceptionHandlerAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    CommonNotFoundExceptionHandler commonNotFoundExceptionHandler(ApiResultFactory responseFactory) {
+    CommonNotFoundExceptionHandler commonNotFoundExceptionHandler(ApiResponseFactory responseFactory) {
         return new CommonNotFoundExceptionHandler(responseFactory);
     }
 }
