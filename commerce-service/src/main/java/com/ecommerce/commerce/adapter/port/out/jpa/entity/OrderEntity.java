@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,7 +18,13 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "orders")
+@Table(
+        name = "orders",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_orders_payment_method_reference",
+                columnNames = {"payment_method", "payment_reference"}
+        )
+)
 public class OrderEntity {
 
     @Id
@@ -87,10 +94,10 @@ public class OrderEntity {
     @Column(length = 500)
     private String notes;
 
-    @Column(length = 40)
+    @Column(name = "payment_method", length = 40)
     private String paymentMethod;
 
-    @Column(length = 120)
+    @Column(name = "payment_reference", length = 120)
     private String paymentReference;
 
     private Instant paidAt;

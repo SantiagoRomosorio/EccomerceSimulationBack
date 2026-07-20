@@ -156,33 +156,35 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.data.id").value(orderId))
                 .andExpect(jsonPath("$.data.shippingAddress.city").value("Bogota"));
 
+        String paymentReference = "pay-test-" + UUID.randomUUID();
         mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "paymentMethod": "CARD",
-                                  "providerReference": "pay-test-001"
+                                  "providerReference": "%s"
                                 }
-                                """))
+                                """.formatted(paymentReference)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.message").value("Order payment confirmed successfully"))
                 .andExpect(jsonPath("$.data.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.data.paymentMethod").value("CARD"))
-                .andExpect(jsonPath("$.data.paymentReference").value("pay-test-001"))
+                .andExpect(jsonPath("$.data.paymentReference").value(paymentReference))
                 .andExpect(jsonPath("$.data.paidAt", notNullValue()));
 
+        String differentPaymentReference = "pay-test-" + UUID.randomUUID();
         mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "paymentMethod": "CARD",
-                                  "providerReference": "pay-test-002"
+                                  "providerReference": "%s"
                                 }
-                                """))
+                                """.formatted(differentPaymentReference)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(409))
@@ -348,15 +350,16 @@ class CommerceApiIntegrationTests {
                 "$.data.id"
         );
 
+        String paymentReference = "pay-confirmed-cancel-" + UUID.randomUUID();
         mockMvc.perform(post("/api/orders/{id}/payment-confirmations", orderId)
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "paymentMethod": "CARD",
-                                  "providerReference": "pay-confirmed-cancel"
+                                  "providerReference": "%s"
                                 }
-                                """))
+                                """.formatted(paymentReference)))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/orders/{id}/cancellations", orderId)

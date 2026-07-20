@@ -4,6 +4,7 @@ import com.ecommerce.commerce.domain.exception.DomainException;
 import com.ecommerce.commerce.domain.exception.CatalogUnavailableException;
 import com.ecommerce.commerce.domain.exception.InventoryReservationException;
 import com.ecommerce.commerce.domain.exception.InvalidOrderStateException;
+import com.ecommerce.commerce.domain.exception.PaymentReferenceConflictException;
 import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import com.ecommerce.common.web.response.ApiResponse;
 import com.ecommerce.common.web.response.ApiResponseFactory;
@@ -141,7 +142,9 @@ public class GlobalExceptionHandler {
             return ApiStatusCode.NOT_FOUND;
         }
 
-        if (exception instanceof InventoryReservationException || exception instanceof InvalidOrderStateException) {
+        if (exception instanceof InventoryReservationException
+                || exception instanceof InvalidOrderStateException
+                || exception instanceof PaymentReferenceConflictException) {
             return ApiStatusCode.CONFLICT;
         }
 
