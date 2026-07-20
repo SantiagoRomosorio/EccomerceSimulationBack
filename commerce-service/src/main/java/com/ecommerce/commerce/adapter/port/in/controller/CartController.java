@@ -92,10 +92,6 @@ public class CartController {
     ) {
         CartResponse response = mapper.toResponse(addCartItemUseCase.addItem(userId, new AddCartItemUseCase.Command(
                 body.productId(),
-                body.sku(),
-                body.productName(),
-                body.unitPrice(),
-                body.currency(),
                 body.quantity()
         )));
 

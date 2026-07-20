@@ -1,7 +1,6 @@
 package com.ecommerce.commerce.application.port.in;
 
 import com.ecommerce.commerce.domain.model.Cart;
-import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface AddCartItemUseCase {
@@ -9,10 +8,6 @@ public interface AddCartItemUseCase {
 
     record Command(
             UUID productId,
-            String sku,
-            String productName,
-            BigDecimal unitPrice,
-            String currency,
             int quantity
     ) {
     }

@@ -1,6 +1,7 @@
 package com.ecommerce.commerce;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.ecommerce.commerce.adapter.port.out.jpa.entity.CartEntity;
 import com.ecommerce.commerce.adapter.port.out.jpa.entity.CartItemEntity;
@@ -8,6 +9,7 @@ import com.ecommerce.commerce.adapter.port.out.jpa.repository.CartJpaRepository;
 import com.ecommerce.commerce.application.port.in.AddCartItemUseCase;
 import com.ecommerce.commerce.application.port.in.GetCartUseCase;
 import com.ecommerce.commerce.application.port.in.RemoveCartItemUseCase;
+import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
 import com.ecommerce.commerce.domain.model.Cart;
 import java.math.BigDecimal;
@@ -35,17 +37,23 @@ class CartSoftDeleteIntegrationTests {
     @MockitoBean
     private ProductInventoryPort productInventoryPort;
 
+    @MockitoBean
+    private ProductCatalogPort productCatalogPort;
+
     @Test
     void removeItemMarksCartItemAsDeletedAndHidesItFromCurrentCart() {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
-
-        addCartItemUseCase.addItem(userId, new AddCartItemUseCase.Command(
+        when(productCatalogPort.getProduct(productId)).thenReturn(new ProductCatalogPort.ProductDetails(
                 productId,
                 "SKU-SOFT-DELETE",
                 "Soft Delete Product",
                 BigDecimal.TEN,
-                "USD",
+                "USD"
+        ));
+
+        addCartItemUseCase.addItem(userId, new AddCartItemUseCase.Command(
+                productId,
                 1
         ));
 

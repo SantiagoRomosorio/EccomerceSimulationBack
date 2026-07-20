@@ -2,6 +2,7 @@ package com.ecommerce.commerce;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -9,8 +10,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.UUID;
+import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
+import java.math.BigDecimal;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,6 +32,9 @@ class CommerceApiIntegrationTests {
 
     @MockitoBean
     private ProductInventoryPort productInventoryPort;
+
+    @MockitoBean
+    private ProductCatalogPort productCatalogPort;
 
     @Test
     void healthReturnsStandardApiResponse() throws Exception {
@@ -64,6 +70,7 @@ class CommerceApiIntegrationTests {
     void cartCheckoutAndOrdersUseStandardApiResponses() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
+        mockCatalogProduct(productId, "SKU-001", "Keyboard", new BigDecimal("25.50"), "USD");
 
         mockMvc.perform(get("/api/cart").header("X-User-Id", userId))
                 .andExpect(status().isOk())
@@ -77,20 +84,20 @@ class CommerceApiIntegrationTests {
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "productId": "%s",
-                                  "sku": "SKU-001",
-                                  "productName": "Keyboard",
-                                  "unitPrice": 25.50,
-                                  "currency": "USD",
-                                  "quantity": 2
-                                }
+                                 {
+                                   "productId": "%s",
+                                   "quantity": 2
+                                 }
                                 """.formatted(productId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(201))
                 .andExpect(jsonPath("$.message").value("Cart item added successfully"))
                 .andExpect(jsonPath("$.data.items[0].productId").value(productId.toString()))
+                .andExpect(jsonPath("$.data.items[0].sku").value("SKU-001"))
+                .andExpect(jsonPath("$.data.items[0].productName").value("Keyboard"))
+                .andExpect(jsonPath("$.data.items[0].unitPrice").value(25.5))
+                .andExpect(jsonPath("$.data.items[0].currency").value("USD"))
                 .andExpect(jsonPath("$.data.items[0].quantity").value(2))
                 .andExpect(jsonPath("$.data.total").value(51.0));
 
@@ -107,6 +114,8 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.data.items[0].quantity").value(3))
                 .andExpect(jsonPath("$.data.total").value(76.5));
 
+        mockCatalogProduct(productId, "SKU-001", "Keyboard", new BigDecimal("30.00"), "USD");
+
         MvcResult checkout = mockMvc.perform(post("/api/checkout")
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,6 +130,8 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.data.billingAddress.recipientName").value("Billing Buyer"))
                 .andExpect(jsonPath("$.data.notes").value("Deliver during business hours"))
                 .andExpect(jsonPath("$.data.items[0].productId").value(productId.toString()))
+                .andExpect(jsonPath("$.data.items[0].unitPrice").value(30.0))
+                .andExpect(jsonPath("$.data.total").value(90.0))
                 .andReturn();
 
         String orderId = com.jayway.jsonpath.JsonPath.read(
@@ -180,19 +191,42 @@ class CommerceApiIntegrationTests {
                         .header("X-User-Id", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "productId": null,
-                                  "sku": "",
-                                  "productName": "",
-                                  "unitPrice": 0,
-                                  "currency": "US",
-                                  "quantity": 0
-                                }
+                                 {
+                                   "productId": null,
+                                   "quantity": 0
+                                 }
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"));
+    }
+
+    @Test
+    void addItemIgnoresClientSuppliedProductDetailsAndUsesCatalogData() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        mockCatalogProduct(productId, "CANONICAL-SKU", "Catalog Product", new BigDecimal("49.99"), "USD");
+
+        mockMvc.perform(post("/api/cart/items")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId": "%s",
+                                  "sku": "FORGED-SKU",
+                                  "productName": "Forged Product",
+                                  "unitPrice": 0.01,
+                                  "currency": "COP",
+                                  "quantity": 2
+                                }
+                                """.formatted(productId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.items[0].sku").value("CANONICAL-SKU"))
+                .andExpect(jsonPath("$.data.items[0].productName").value("Catalog Product"))
+                .andExpect(jsonPath("$.data.items[0].unitPrice").value(49.99))
+                .andExpect(jsonPath("$.data.items[0].currency").value("USD"))
+                .andExpect(jsonPath("$.data.total").value(99.98));
     }
 
     @Test
@@ -328,20 +362,28 @@ class CommerceApiIntegrationTests {
     }
 
     private void addItem(UUID userId, UUID productId) throws Exception {
+        mockCatalogProduct(productId, "SKU-REMOVE", "Mouse", BigDecimal.TEN, "USD");
         mockMvc.perform(post("/api/cart/items")
                         .header("X-User-Id", userId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "productId": "%s",
-                                  "sku": "SKU-REMOVE",
-                                  "productName": "Mouse",
-                                  "unitPrice": 10.00,
-                                  "currency": "USD",
-                                  "quantity": 1
-                                }
+                                 {
+                                   "productId": "%s",
+                                   "quantity": 1
+                                 }
                                 """.formatted(productId)))
                 .andExpect(status().isCreated());
+    }
+
+    private void mockCatalogProduct(
+            UUID productId,
+            String sku,
+            String name,
+            BigDecimal price,
+            String currency
+    ) {
+        when(productCatalogPort.getProduct(productId))
+                .thenReturn(new ProductCatalogPort.ProductDetails(productId, sku, name, price, currency));
     }
 
     private String validCheckoutBody() {
