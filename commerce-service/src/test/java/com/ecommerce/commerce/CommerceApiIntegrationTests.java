@@ -203,6 +203,37 @@ class CommerceApiIntegrationTests {
     }
 
     @Test
+    void cartQuantityRequestsRejectValuesAboveMaximum() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/cart/items")
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                 {
+                                   "productId": "%s",
+                                   "quantity": 1001
+                                 }
+                                """.formatted(productId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
+                .andExpect(jsonPath("$.data.errors[0].field").value("quantity"));
+
+        mockMvc.perform(patch("/api/cart/items/{productId}", productId)
+                        .header("X-User-Id", userId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "quantity": 1001
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
+                .andExpect(jsonPath("$.data.errors[0].field").value("quantity"));
+    }
+
+    @Test
     void addItemIgnoresClientSuppliedProductDetailsAndUsesCatalogData() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();

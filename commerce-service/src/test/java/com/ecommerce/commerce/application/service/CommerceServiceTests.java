@@ -1,8 +1,10 @@
 package com.ecommerce.commerce.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +14,7 @@ import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
+import com.ecommerce.commerce.domain.exception.InvalidCartException;
 import com.ecommerce.commerce.domain.model.Cart;
 import com.ecommerce.commerce.domain.model.CartItem;
 import com.ecommerce.commerce.domain.model.Order;
@@ -80,6 +83,64 @@ class CommerceServiceTests {
         });
         assertThat(cart.total()).isEqualByComparingTo("99.98");
         verify(productCatalogPort).getProduct(productId);
+    }
+
+    @Test
+    void rejectsMergedCartItemQuantityAboveMaximum() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID(), userId, List.of(new CartItem(
+                UUID.randomUUID(),
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.ONE,
+                "USD",
+                1_000
+        )));
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(productCatalogPort.getProduct(productId)).thenReturn(new ProductCatalogPort.ProductDetails(
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.ONE,
+                "USD"
+        ));
+
+        assertThatThrownBy(() -> service.addItem(userId, new AddCartItemUseCase.Command(productId, 1)))
+                .isInstanceOf(InvalidCartException.class)
+                .hasMessage("Cart item quantity exceeds maximum");
+
+        verify(cartRepository, never()).save(any(Cart.class));
+    }
+
+    @Test
+    void convertsCartItemQuantityOverflowIntoControlledDomainError() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID(), userId, List.of(new CartItem(
+                UUID.randomUUID(),
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.ONE,
+                "USD",
+                Integer.MAX_VALUE
+        )));
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(productCatalogPort.getProduct(productId)).thenReturn(new ProductCatalogPort.ProductDetails(
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.ONE,
+                "USD"
+        ));
+
+        assertThatThrownBy(() -> service.addItem(userId, new AddCartItemUseCase.Command(productId, 1)))
+                .isInstanceOf(InvalidCartException.class)
+                .hasMessage("Cart item quantity exceeds maximum");
+
+        verify(cartRepository, never()).save(any(Cart.class));
     }
 
     @Test

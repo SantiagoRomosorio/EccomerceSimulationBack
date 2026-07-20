@@ -373,6 +373,39 @@ class CatalogApiIntegrationTests {
     }
 
     @Test
+    void productStockRequestsRejectValuesAboveMaximum() throws Exception {
+        UUID productId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "sku": "MAX-STOCK",
+                                  "name": "Maximum Stock Product",
+                                  "price": 1.00,
+                                  "currency": "USD",
+                                  "categoryId": "%s",
+                                  "brandId": "%s",
+                                  "stockQuantity": 1000001
+                                }
+                                """.formatted(UUID.randomUUID(), UUID.randomUUID())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
+                .andExpect(jsonPath("$.data.errors[0].field").value("stockQuantity"));
+
+        mockMvc.perform(patch("/api/products/{id}/stock", productId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "stockQuantity": 1000001
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
+                .andExpect(jsonPath("$.data.errors[0].field").value("stockQuantity"));
+    }
+
+    @Test
     void createProductReturnsBadRequestWhenJsonIsMalformed() throws Exception {
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -522,6 +555,25 @@ class CatalogApiIntegrationTests {
                 .andExpect(jsonPath("$.developerMessage").value("ConflictException"))
                 .andExpect(jsonPath("$.message").value("Insufficient product stock"))
                 .andExpect(jsonPath("$.data.availableQuantity").value(8));
+    }
+
+    @Test
+    void reserveStockReturnsBadRequestWhenQuantityExceedsMaximum() throws Exception {
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "items": [
+                                    {
+                                      "productId": "%s",
+                                      "quantity": 1001
+                                    }
+                                  ]
+                                }
+                                """.formatted(UUID.randomUUID())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
+                .andExpect(jsonPath("$.data.errors[0].field").value("items[0].quantity"));
     }
 
     @Test

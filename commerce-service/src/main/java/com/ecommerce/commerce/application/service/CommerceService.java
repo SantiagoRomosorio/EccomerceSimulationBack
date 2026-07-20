@@ -31,6 +31,8 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
         UpdateCartItemQuantityUseCase, RemoveCartItemUseCase, CheckoutUseCase,
         ListOrdersUseCase, GetOrderUseCase, ConfirmOrderPaymentUseCase, CancelOrderUseCase {
 
+    private static final int MAX_CART_ITEM_QUANTITY = 1_000;
+
     private final CartRepositoryPort cartRepository;
     private final OrderRepositoryPort orderRepository;
     private final ProductCatalogPort productCatalogPort;
@@ -71,7 +73,7 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                         product.name(),
                         product.price(),
                         product.currency(),
-                        current.quantity() + command.quantity()
+                        mergedQuantity(current, command.quantity())
                 ));
                 merged = true;
                 break;
@@ -270,5 +272,33 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 product.currency(),
                 item.quantity()
         );
+    }
+
+    private int mergedQuantity(CartItem current, int quantityToAdd) {
+        int quantity;
+        try {
+            quantity = Math.addExact(current.quantity(), quantityToAdd);
+        } catch (ArithmeticException exception) {
+            throw quantityLimitExceeded(current.productId(), current.quantity(), quantityToAdd);
+        }
+
+        if (quantity > MAX_CART_ITEM_QUANTITY) {
+            throw quantityLimitExceeded(current.productId(), current.quantity(), quantityToAdd);
+        }
+
+        return quantity;
+    }
+
+    private InvalidCartException quantityLimitExceeded(
+            UUID productId,
+            int currentQuantity,
+            int quantityToAdd
+    ) {
+        return new InvalidCartException("Cart item quantity exceeds maximum", Map.of(
+                "productId", productId,
+                "currentQuantity", currentQuantity,
+                "quantityToAdd", quantityToAdd,
+                "maximumQuantity", MAX_CART_ITEM_QUANTITY
+        ));
     }
 }

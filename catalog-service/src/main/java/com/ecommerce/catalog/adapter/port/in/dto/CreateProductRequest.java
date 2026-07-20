@@ -1,6 +1,7 @@
 package com.ecommerce.catalog.adapter.port.in.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,6 @@ public record CreateProductRequest(
         @NotBlank @Size(min = 3, max = 3) String currency,
         @NotNull UUID categoryId,
         @NotNull UUID brandId,
-        @Min(0) int stockQuantity
+        @Min(0) @Max(1_000_000) int stockQuantity
 ) {
 }

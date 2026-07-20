@@ -28,6 +28,8 @@ public class CatalogService implements CreateCategoryUseCase, ListCategoriesUseC
         CreateProductUseCase, GetProductUseCase, ListProductsUseCase, UpdateProductStockUseCase,
         ReserveProductStockUseCase, ReleaseProductStockUseCase {
 
+    private static final int MAX_STOCK_QUANTITY = 1_000_000;
+
     private final CategoryRepositoryPort categoryRepository;
     private final BrandRepositoryPort brandRepository;
     private final ProductRepositoryPort productRepository;
@@ -147,6 +149,26 @@ public class CatalogService implements CreateCategoryUseCase, ListCategoriesUseC
         Product product = productRepository.findProductByIdForUpdate(command.productId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found", Map.of("productId", command.productId())));
 
-        return productRepository.save(product.withStockQuantity(product.stockQuantity() + command.quantity()));
+        int stockQuantity;
+        try {
+            stockQuantity = Math.addExact(product.stockQuantity(), command.quantity());
+        } catch (ArithmeticException exception) {
+            throw stockLimitExceeded(product, command.quantity());
+        }
+
+        if (stockQuantity > MAX_STOCK_QUANTITY) {
+            throw stockLimitExceeded(product, command.quantity());
+        }
+
+        return productRepository.save(product.withStockQuantity(stockQuantity));
+    }
+
+    private ConflictException stockLimitExceeded(Product product, int quantityToRelease) {
+        return new ConflictException("Product stock quantity exceeds maximum", Map.of(
+                "productId", product.id(),
+                "currentQuantity", product.stockQuantity(),
+                "quantityToRelease", quantityToRelease,
+                "maximumQuantity", MAX_STOCK_QUANTITY
+        ));
     }
 }
