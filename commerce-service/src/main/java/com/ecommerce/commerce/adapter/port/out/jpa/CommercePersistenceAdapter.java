@@ -6,12 +6,16 @@ import com.ecommerce.commerce.adapter.port.out.jpa.mapper.CommerceJpaMapper;
 import com.ecommerce.commerce.adapter.port.out.jpa.repository.CartJpaRepository;
 import com.ecommerce.commerce.adapter.port.out.jpa.repository.OrderJpaRepository;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
+import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
+import com.ecommerce.commerce.domain.exception.InvalidCartException;
+import com.ecommerce.commerce.domain.exception.ResourceNotFoundException;
 import com.ecommerce.commerce.domain.model.Cart;
 import com.ecommerce.commerce.domain.model.CartItem;
 import com.ecommerce.commerce.domain.model.Order;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -20,7 +24,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
-public class CommercePersistenceAdapter implements CartRepositoryPort, OrderRepositoryPort {
+public class CommercePersistenceAdapter implements
+        CartRepositoryPort,
+        OrderRepositoryPort,
+        CheckoutPersistencePort {
 
     private final CartJpaRepository cartRepository;
     private final OrderJpaRepository orderRepository;
@@ -80,6 +87,32 @@ public class CommercePersistenceAdapter implements CartRepositoryPort, OrderRepo
         return orderRepository.findByIdAndUserId(orderId, userId).map(mapper::toDomain);
     }
 
+    @Override
+    @Transactional
+    public Order saveOrderAndDeleteCart(Order order, Cart expectedCart) {
+        CartEntity cartEntity = cartRepository.findByIdAndUserIdForUpdate(
+                        expectedCart.id(),
+                        expectedCart.userId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Cart not found",
+                        Map.of("userId", expectedCart.userId())
+                ));
+
+        Cart persistedCart = mapper.toDomain(cartEntity);
+        if (!itemQuantities(persistedCart).equals(itemQuantities(expectedCart))) {
+            throw new InvalidCartException(
+                    "Cart changed during checkout",
+                    Map.of("cartId", expectedCart.id())
+            );
+        }
+
+        Order savedOrder = mapper.toDomain(orderRepository.saveAndFlush(mapper.toEntity(order)));
+        cartRepository.delete(cartEntity);
+        cartRepository.flush();
+        return savedOrder;
+    }
+
     private void syncItems(CartEntity entity, Cart cart) {
         Set<UUID> incomingProductIds = cart.items().stream()
                 .map(CartItem::productId)
@@ -111,5 +144,12 @@ public class CommercePersistenceAdapter implements CartRepositoryPort, OrderRepo
                 .filter(item -> item.getDeletedAt() == null)
                 .filter(item -> item.getProductId().equals(productId))
                 .findFirst();
+    }
+
+    private Map<UUID, Integer> itemQuantities(Cart cart) {
+        return cart.items().stream().collect(Collectors.toMap(
+                CartItem::productId,
+                CartItem::quantity
+        ));
     }
 }

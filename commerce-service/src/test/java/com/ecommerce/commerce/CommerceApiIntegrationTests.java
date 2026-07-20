@@ -139,6 +139,10 @@ class CommerceApiIntegrationTests {
                 "$.data.id"
         );
 
+        mockMvc.perform(get("/api/cart").header("X-User-Id", userId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(0));
+
         mockMvc.perform(get("/api/orders").header("X-User-Id", userId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.method").value("GET"))

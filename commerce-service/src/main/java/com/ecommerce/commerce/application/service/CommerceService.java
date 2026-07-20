@@ -10,6 +10,7 @@ import com.ecommerce.commerce.application.port.in.ListOrdersUseCase;
 import com.ecommerce.commerce.application.port.in.RemoveCartItemUseCase;
 import com.ecommerce.commerce.application.port.in.UpdateCartItemQuantityUseCase;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
+import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
@@ -34,17 +35,20 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
     private static final int MAX_CART_ITEM_QUANTITY = 1_000;
 
     private final CartRepositoryPort cartRepository;
+    private final CheckoutPersistencePort checkoutPersistencePort;
     private final OrderRepositoryPort orderRepository;
     private final ProductCatalogPort productCatalogPort;
     private final ProductInventoryPort productInventoryPort;
 
     public CommerceService(
             CartRepositoryPort cartRepository,
+            CheckoutPersistencePort checkoutPersistencePort,
             OrderRepositoryPort orderRepository,
             ProductCatalogPort productCatalogPort,
             ProductInventoryPort productInventoryPort
     ) {
         this.cartRepository = cartRepository;
+        this.checkoutPersistencePort = checkoutPersistencePort;
         this.orderRepository = orderRepository;
         this.productCatalogPort = productCatalogPort;
         this.productInventoryPort = productInventoryPort;
@@ -163,7 +167,7 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 ))
                 .toList();
 
-        Order order = orderRepository.save(new Order(
+        Order order = new Order(
                 orderId,
                 userId,
                 OrderStatus.PENDING_PAYMENT,
@@ -179,9 +183,18 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 null,
                 Instant.now(),
                 orderItems
-        ));
-        cartRepository.deleteById(cart.id());
-        return order;
+        );
+
+        try {
+            return checkoutPersistencePort.saveOrderAndDeleteCart(order, currentCart);
+        } catch (RuntimeException checkoutFailure) {
+            try {
+                productInventoryPort.releaseStock(orderId);
+            } catch (RuntimeException compensationFailure) {
+                checkoutFailure.addSuppressed(compensationFailure);
+            }
+            throw checkoutFailure;
+        }
     }
 
     @Override

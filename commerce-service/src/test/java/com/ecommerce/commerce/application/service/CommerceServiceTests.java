@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.ecommerce.commerce.application.port.in.AddCartItemUseCase;
 import com.ecommerce.commerce.application.port.in.CheckoutUseCase;
 import com.ecommerce.commerce.application.port.out.CartRepositoryPort;
+import com.ecommerce.commerce.application.port.out.CheckoutPersistencePort;
 import com.ecommerce.commerce.application.port.out.OrderRepositoryPort;
 import com.ecommerce.commerce.application.port.out.ProductCatalogPort;
 import com.ecommerce.commerce.application.port.out.ProductInventoryPort;
@@ -23,6 +24,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +37,9 @@ class CommerceServiceTests {
 
     @Mock
     private CartRepositoryPort cartRepository;
+
+    @Mock
+    private CheckoutPersistencePort checkoutPersistencePort;
 
     @Mock
     private OrderRepositoryPort orderRepository;
@@ -51,6 +56,7 @@ class CommerceServiceTests {
     void setUp() {
         service = new CommerceService(
                 cartRepository,
+                checkoutPersistencePort,
                 orderRepository,
                 productCatalogPort,
                 productInventoryPort
@@ -165,7 +171,8 @@ class CommerceServiceTests {
                 new BigDecimal("30.00"),
                 "USD"
         ));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(checkoutPersistencePort.saveOrderAndDeleteCart(any(Order.class), any(Cart.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         OrderAddress address = new OrderAddress(
                 "Buyer",
                 "123 Main Street",
@@ -190,10 +197,57 @@ class CommerceServiceTests {
         verify(productInventoryPort).reserveStock(order.id(), List.of(
                 new ProductInventoryPort.Reservation(productId, 2)
         ));
-        verify(cartRepository).deleteById(cartId);
+        verify(checkoutPersistencePort).saveOrderAndDeleteCart(any(Order.class), any(Cart.class));
 
         InOrder calls = inOrder(productCatalogPort, productInventoryPort);
         calls.verify(productCatalogPort).getProduct(productId);
         calls.verify(productInventoryPort).reserveStock(any(), any());
+    }
+
+    @Test
+    void releasesReservedStockWhenCheckoutPersistenceFails() {
+        UUID userId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        Cart cart = new Cart(UUID.randomUUID(), userId, List.of(new CartItem(
+                UUID.randomUUID(),
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.TEN,
+                "USD",
+                2
+        )));
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(productCatalogPort.getProduct(productId)).thenReturn(new ProductCatalogPort.ProductDetails(
+                productId,
+                "SKU-001",
+                "Product",
+                BigDecimal.TEN,
+                "USD"
+        ));
+        when(checkoutPersistencePort.saveOrderAndDeleteCart(any(Order.class), any(Cart.class)))
+                .thenThrow(new IllegalStateException("Database write failed"));
+
+        OrderAddress address = new OrderAddress(
+                "Buyer",
+                "123 Main Street",
+                null,
+                "Bogota",
+                "Cundinamarca",
+                "110111",
+                "CO",
+                "+5700000000"
+        );
+
+        assertThatThrownBy(() -> service.checkout(
+                userId,
+                new CheckoutUseCase.Command(address, null, null)
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Database write failed");
+
+        ArgumentCaptor<UUID> reservationId = ArgumentCaptor.forClass(UUID.class);
+        verify(productInventoryPort).reserveStock(reservationId.capture(), any());
+        verify(productInventoryPort).releaseStock(reservationId.getValue());
     }
 }
