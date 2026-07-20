@@ -24,11 +24,11 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
     }
 
     @Override
-    public void reserveStock(List<Reservation> reservations) {
+    public void reserveStock(UUID reservationId, List<Reservation> reservations) {
         try {
             restClient.post()
                     .uri("/api/internal/products/stock/reservations")
-                    .body(new ReserveStockRequest(reservations.stream()
+                    .body(new ReserveStockRequest(reservationId, reservations.stream()
                             .map(item -> new ReserveStockItemRequest(item.productId(), item.quantity()))
                             .toList()))
                     .retrieve()
@@ -53,13 +53,11 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
     }
 
     @Override
-    public void releaseStock(List<Reservation> reservations) {
+    public void releaseStock(UUID reservationId) {
         try {
             restClient.post()
                     .uri("/api/internal/products/stock/releases")
-                    .body(new ReserveStockRequest(reservations.stream()
-                            .map(item -> new ReserveStockItemRequest(item.productId(), item.quantity()))
-                            .toList()))
+                    .body(new ReleaseStockRequest(reservationId))
                     .retrieve()
                     .toBodilessEntity();
         } catch (HttpClientErrorException exception) {
@@ -75,9 +73,12 @@ public class CatalogInventoryClientAdapter implements ProductInventoryPort {
         }
     }
 
-    private record ReserveStockRequest(List<ReserveStockItemRequest> items) {
+    private record ReserveStockRequest(UUID reservationId, List<ReserveStockItemRequest> items) {
     }
 
     private record ReserveStockItemRequest(UUID productId, int quantity) {
+    }
+
+    private record ReleaseStockRequest(UUID reservationId) {
     }
 }

@@ -323,9 +323,7 @@ class CommerceApiIntegrationTests {
                 .andExpect(jsonPath("$.data.cancellationReason").value("Customer changed their mind"))
                 .andExpect(jsonPath("$.data.cancelledAt", notNullValue()));
 
-        verify(productInventoryPort).releaseStock(java.util.List.of(
-                new ProductInventoryPort.Reservation(productId, 1)
-        ));
+        verify(productInventoryPort).releaseStock(UUID.fromString(orderId));
     }
 
     @Test

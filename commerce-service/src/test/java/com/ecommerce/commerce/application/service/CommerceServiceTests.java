@@ -187,13 +187,13 @@ class CommerceServiceTests {
             assertThat(item.unitPrice()).isEqualByComparingTo("30.00");
             assertThat(item.lineTotal()).isEqualByComparingTo("60.00");
         });
-        verify(productInventoryPort).reserveStock(List.of(
+        verify(productInventoryPort).reserveStock(order.id(), List.of(
                 new ProductInventoryPort.Reservation(productId, 2)
         ));
         verify(cartRepository).deleteById(cartId);
 
         InOrder calls = inOrder(productCatalogPort, productInventoryPort);
         calls.verify(productCatalogPort).getProduct(productId);
-        calls.verify(productInventoryPort).reserveStock(any());
+        calls.verify(productInventoryPort).reserveStock(any(), any());
     }
 }

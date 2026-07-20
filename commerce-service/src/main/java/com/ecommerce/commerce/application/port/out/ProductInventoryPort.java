@@ -5,9 +5,9 @@ import java.util.UUID;
 
 public interface ProductInventoryPort {
 
-    void reserveStock(List<Reservation> reservations);
+    void reserveStock(UUID reservationId, List<Reservation> reservations);
 
-    void releaseStock(List<Reservation> reservations);
+    void releaseStock(UUID reservationId);
 
     record Reservation(UUID productId, int quantity) {
     }

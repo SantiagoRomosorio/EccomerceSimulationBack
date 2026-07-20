@@ -145,7 +145,8 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
             throw new InvalidCartException("Cart has mixed currencies", Map.of("userId", userId));
         }
 
-        productInventoryPort.reserveStock(currentItems.stream()
+        UUID orderId = UUID.randomUUID();
+        productInventoryPort.reserveStock(orderId, currentItems.stream()
                 .map(item -> new ProductInventoryPort.Reservation(item.productId(), item.quantity()))
                 .toList());
 
@@ -163,7 +164,7 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
                 .toList();
 
         Order order = orderRepository.save(new Order(
-                UUID.randomUUID(),
+                orderId,
                 userId,
                 OrderStatus.PENDING_PAYMENT,
                 currency,
@@ -233,9 +234,7 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
             ));
         }
 
-        productInventoryPort.releaseStock(order.items().stream()
-                .map(item -> new ProductInventoryPort.Reservation(item.productId(), item.quantity()))
-                .toList());
+        productInventoryPort.releaseStock(order.id());
 
         return orderRepository.save(new Order(
                 order.id(),
