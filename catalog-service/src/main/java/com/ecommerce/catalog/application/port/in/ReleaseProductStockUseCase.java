@@ -5,8 +5,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ReleaseProductStockUseCase {
-    List<Product> releaseStock(List<Command> commands);
-
-    record Command(UUID productId, int quantity) {
-    }
+    List<Product> releaseStock(UUID reservationId);
 }

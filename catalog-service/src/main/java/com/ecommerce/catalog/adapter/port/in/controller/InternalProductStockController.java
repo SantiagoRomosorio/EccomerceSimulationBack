@@ -1,6 +1,7 @@
 package com.ecommerce.catalog.adapter.port.in.controller;
 
 import com.ecommerce.catalog.adapter.port.in.dto.ProductResponse;
+import com.ecommerce.catalog.adapter.port.in.dto.ReleaseProductStockRequest;
 import com.ecommerce.catalog.adapter.port.in.dto.ReserveProductStockRequest;
 import com.ecommerce.catalog.adapter.port.in.mapper.CatalogDtoMapper;
 import com.ecommerce.catalog.application.port.in.ReleaseProductStockUseCase;
@@ -53,9 +54,12 @@ public class InternalProductStockController {
             @Valid @RequestBody ReserveProductStockRequest body,
             HttpServletRequest request
     ) {
-        List<ProductResponse> response = reserveProductStockUseCase.reserveStock(body.items().stream()
-                        .map(item -> new ReserveProductStockUseCase.Command(item.productId(), item.quantity()))
-                        .toList())
+        List<ProductResponse> response = reserveProductStockUseCase.reserveStock(
+                        body.reservationId(),
+                        body.items().stream()
+                                .map(item -> new ReserveProductStockUseCase.Command(item.productId(), item.quantity()))
+                                .toList()
+                )
                 .stream()
                 .map(mapper::toResponse)
                 .toList();
@@ -68,16 +72,15 @@ public class InternalProductStockController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Product stock released"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Product not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Reservation or product not found"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Reservation cannot be released"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Unexpected server error")
     })
     public ResponseEntity<ApiResponse<List<ProductResponse>>> release(
-            @Valid @RequestBody ReserveProductStockRequest body,
+            @Valid @RequestBody ReleaseProductStockRequest body,
             HttpServletRequest request
     ) {
-        List<ProductResponse> response = releaseProductStockUseCase.releaseStock(body.items().stream()
-                        .map(item -> new ReleaseProductStockUseCase.Command(item.productId(), item.quantity()))
-                        .toList())
+        List<ProductResponse> response = releaseProductStockUseCase.releaseStock(body.reservationId())
                 .stream()
                 .map(mapper::toResponse)
                 .toList();

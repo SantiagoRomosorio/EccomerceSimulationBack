@@ -506,19 +506,11 @@ class CatalogApiIntegrationTests {
     @Test
     void reserveStockReturnsOkAndDecrementsProductStock() throws Exception {
         String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
 
         mockMvc.perform(post("/api/internal/products/stock/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    {
-                                      "productId": "%s",
-                                      "quantity": 3
-                                    }
-                                  ]
-                                }
-                                """.formatted(productId)))
+                        .content(reservationRequest(reservationId, productId, 3)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(200))
@@ -535,19 +527,11 @@ class CatalogApiIntegrationTests {
     @Test
     void reserveStockReturnsConflictWhenStockIsInsufficient() throws Exception {
         String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
 
         mockMvc.perform(post("/api/internal/products/stock/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    {
-                                      "productId": "%s",
-                                      "quantity": 99
-                                    }
-                                  ]
-                                }
-                                """.formatted(productId)))
+                        .content(reservationRequest(reservationId, productId, 99)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(409))
@@ -561,16 +545,7 @@ class CatalogApiIntegrationTests {
     void reserveStockReturnsBadRequestWhenQuantityExceedsMaximum() throws Exception {
         mockMvc.perform(post("/api/internal/products/stock/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    {
-                                      "productId": "%s",
-                                      "quantity": 1001
-                                    }
-                                  ]
-                                }
-                                """.formatted(UUID.randomUUID())))
+                        .content(reservationRequest(UUID.randomUUID(), UUID.randomUUID().toString(), 1001)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.developerMessage").value("Request body validation failed"))
                 .andExpect(jsonPath("$.data.errors[0].field").value("items[0].quantity"));
@@ -579,34 +554,17 @@ class CatalogApiIntegrationTests {
     @Test
     void releaseStockReturnsOkAndIncrementsProductStock() throws Exception {
         String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
 
         mockMvc.perform(post("/api/internal/products/stock/reservations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    {
-                                      "productId": "%s",
-                                      "quantity": 3
-                                    }
-                                  ]
-                                }
-                                """.formatted(productId)))
+                        .content(reservationRequest(reservationId, productId, 3)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].stockQuantity").value(5));
 
         mockMvc.perform(post("/api/internal/products/stock/releases")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "items": [
-                                    {
-                                      "productId": "%s",
-                                      "quantity": 3
-                                    }
-                                  ]
-                                }
-                                """.formatted(productId)))
+                        .content(releaseRequest(reservationId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.method").value("POST"))
                 .andExpect(jsonPath("$.status").value(200))
@@ -618,6 +576,109 @@ class CatalogApiIntegrationTests {
         mockMvc.perform(get("/api/products/{id}", productId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.stockQuantity").value(8));
+    }
+
+    @Test
+    void identicalReservationRetryDoesNotDecrementStockTwice() throws Exception {
+        String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
+        String body = reservationRequest(reservationId, productId, 3);
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(5));
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(5));
+
+        mockMvc.perform(get("/api/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stockQuantity").value(5));
+    }
+
+    @Test
+    void reusedReservationIdWithDifferentPayloadReturnsConflict() throws Exception {
+        String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationRequest(reservationId, productId, 3)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationRequest(reservationId, productId, 2)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Stock reservation payload does not match existing reservation"));
+
+        mockMvc.perform(get("/api/products/{id}", productId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stockQuantity").value(5));
+    }
+
+    @Test
+    void repeatedReleaseDoesNotIncrementStockTwice() throws Exception {
+        String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationRequest(reservationId, productId, 3)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/internal/products/stock/releases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(releaseRequest(reservationId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(8));
+
+        mockMvc.perform(post("/api/internal/products/stock/releases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(releaseRequest(reservationId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].stockQuantity").value(8));
+    }
+
+    @Test
+    void releaseUnknownReservationReturnsNotFound() throws Exception {
+        UUID reservationId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/internal/products/stock/releases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(releaseRequest(reservationId)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Stock reservation not found"))
+                .andExpect(jsonPath("$.data.reservationId").value(reservationId.toString()));
+    }
+
+    @Test
+    void releasedReservationCannotBeReservedAgain() throws Exception {
+        String productId = createProduct();
+        UUID reservationId = UUID.randomUUID();
+        String reservationBody = reservationRequest(reservationId, productId, 3);
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationBody))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/internal/products/stock/releases")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(releaseRequest(reservationId)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/internal/products/stock/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(reservationBody))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Stock reservation has already been released"));
     }
 
     private String createCategory(String slug) throws Exception {
@@ -681,6 +742,28 @@ class CatalogApiIntegrationTests {
 
     private String extractId(MvcResult result) throws Exception {
         return com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), "$.data.id");
+    }
+
+    private String reservationRequest(UUID reservationId, String productId, int quantity) {
+        return """
+                {
+                  "reservationId": "%s",
+                  "items": [
+                    {
+                      "productId": "%s",
+                      "quantity": %d
+                    }
+                  ]
+                }
+                """.formatted(reservationId, productId, quantity);
+    }
+
+    private String releaseRequest(UUID reservationId) {
+        return """
+                {
+                  "reservationId": "%s"
+                }
+                """.formatted(reservationId);
     }
 
     private String uniqueSlug(String prefix) {
