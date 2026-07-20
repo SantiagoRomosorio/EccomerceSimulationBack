@@ -50,24 +50,25 @@ public class CommercePersistenceAdapter implements
 
     @Override
     @Transactional
-    public Cart save(Cart cart) {
-        CartEntity entity = cartRepository.findById(cart.id())
-                .or(() -> cartRepository.findByUserId(cart.userId()))
-                .orElseGet(CartEntity::new);
-
-        if (entity.getId() == null) {
-            entity.setId(cart.id());
-        }
-
+    public Cart create(Cart cart) {
+        CartEntity entity = new CartEntity();
+        entity.setId(cart.id());
         entity.setUserId(cart.userId());
         syncItems(entity, cart);
-
         return mapper.toDomain(cartRepository.save(entity));
     }
 
     @Override
-    public void deleteById(UUID cartId) {
-        cartRepository.deleteById(cartId);
+    @Transactional
+    public Cart save(Cart cart) {
+        CartEntity entity = cartRepository.findByIdAndUserIdForUpdate(cart.id(), cart.userId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Cart not found",
+                        Map.of("userId", cart.userId())
+                ));
+
+        syncItems(entity, cart);
+        return mapper.toDomain(cartRepository.save(entity));
     }
 
     @Override

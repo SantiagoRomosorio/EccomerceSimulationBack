@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
@@ -67,7 +68,8 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
 
     @Override
     public Cart addItem(UUID userId, AddCartItemUseCase.Command command) {
-        Cart cart = getCart(userId);
+        Optional<Cart> existingCart = cartRepository.findByUserId(userId);
+        Cart cart = existingCart.orElseGet(() -> new Cart(UUID.randomUUID(), userId, List.of()));
         ProductCatalogPort.ProductDetails product = productCatalogPort.getProduct(command.productId());
         List<CartItem> items = new ArrayList<>(cart.items());
         boolean merged = false;
@@ -101,7 +103,10 @@ public class CommerceService implements GetCartUseCase, AddCartItemUseCase,
             ));
         }
 
-        return cartRepository.save(new Cart(cart.id(), userId, items));
+        Cart updatedCart = new Cart(cart.id(), userId, items);
+        return existingCart.isPresent()
+                ? cartRepository.save(updatedCart)
+                : cartRepository.create(updatedCart);
     }
 
     @Override

@@ -7,7 +7,7 @@ import java.util.UUID;
 public interface CartRepositoryPort {
     Optional<Cart> findByUserId(UUID userId);
 
-    Cart save(Cart cart);
+    Cart create(Cart cart);
 
-    void deleteById(UUID cartId);
+    Cart save(Cart cart);
 }

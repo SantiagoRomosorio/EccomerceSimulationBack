@@ -87,7 +87,7 @@ class CommerceServiceTests {
                 new BigDecimal("49.99"),
                 "USD"
         ));
-        when(cartRepository.save(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(cartRepository.create(any(Cart.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Cart cart = service.addItem(userId, new AddCartItemUseCase.Command(productId, 2));
 
